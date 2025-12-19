@@ -1,0 +1,732 @@
+/* ChessGame - 主样式文件 */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', 'Microsoft YaHei', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.container {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    padding: 20px;
+    max-width: 1000px;
+    width: 100%;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+header h1 {
+    color: #333;
+    font-size: 2.5em;
+    margin-bottom: 10px;
+}
+
+.game-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8f9fa;
+    padding: 10px 20px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+.current-player {
+    font-size: 1.1em;
+    font-weight: bold;
+}
+
+.game-status {
+    font-size: 1.1em;
+    padding: 5px 15px;
+    border-radius: 5px;
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.game-layout {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.game-board-container {
+    flex-shrink: 0;
+}
+
+.game-rules-panel {
+    max-width: 300px;
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.game-rules-panel h3 {
+    margin: 0 0 16px 0;
+    color: #333;
+    font-size: 18px;
+    text-align: center;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 8px;
+}
+
+.game-rules-panel h4 {
+    margin: 16px 0 8px 0;
+    color: #495057;
+    font-size: 14px;
+}
+
+.rules-content ul {
+    margin: 0 0 12px 0;
+    padding-left: 18px;
+}
+
+.rules-content li {
+    margin-bottom: 4px;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #6c757d;
+}
+
+.color-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.color-indicator.green {
+    background: #4caf50;
+}
+
+.color-indicator.orange {
+    background: #ff5722;
+}
+
+.color-indicator.gold {
+    background: #ffd700;
+}
+
+.chessboard {
+    position: relative;
+    width: 480px;
+    height: 540px;
+    background: #f4e4bc;
+    border: 3px solid #8b4513;
+    border-radius: 8px;
+    padding: 30px;
+}
+
+/* 棋盘网格线 */
+.board-lines {
+    position: absolute;
+    top: 30px;
+    left: 30px;
+    right: 30px;
+    bottom: 30px;
+}
+
+.board-lines svg {
+    width: 100%;
+    height: 100%;
+}
+
+.board-lines .line {
+    stroke: #8b4513;
+    stroke-width: 2;
+}
+
+/* 交叉点（可以放置棋子的位置） */
+.intersection {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 10;
+    /* 添加调试边框来检查对齐 */
+    /* border: 1px solid rgba(255, 0, 0, 0.3); */
+}
+
+.intersection:hover {
+    background-color: rgba(255, 235, 59, 0.3);
+    transform: scale(1.1);
+}
+
+.intersection.selected {
+    background-color: rgba(255, 235, 59, 0.8) !important;
+    box-shadow: 0 0 0 3px #ff9800;
+}
+
+.intersection.valid-move {
+    background-color: rgba(129, 199, 132, 0.8) !important;
+    box-shadow: 0 0 0 3px #4caf50 !important;
+}
+
+.intersection.valid-move::after {
+    content: '';
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    background-color: #4caf50;
+    border-radius: 50%;
+    opacity: 1;
+    z-index: 5;
+}
+
+.intersection.capture-move {
+    background-color: rgba(239, 83, 80, 0.6) !important;
+    box-shadow: 0 0 0 3px #f44336;
+}
+
+.intersection.best-move {
+    background-color: rgba(255, 215, 0, 0.8) !important;
+    box-shadow: 0 0 0 4px #ffd700 !important;
+    animation: goldPulse 1.5s infinite;
+}
+
+.intersection.best-capture {
+    background-color: rgba(255, 69, 0, 0.7) !important;
+    box-shadow: 0 0 0 4px #ffd700 !important, 0 0 0 6px #ff4500 !important;
+    animation: bestCapturePulse 1.5s infinite;
+}
+
+.best-move-star {
+    position: absolute;
+    font-size: 24px;
+    z-index: 20;
+    pointer-events: none;
+    text-shadow: 2px 2px 6px rgba(0,0,0,0.8);
+    top: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    animation: starTwinkle 2s infinite;
+}
+
+@keyframes goldPulse {
+    0% { 
+        box-shadow: 0 0 0 4px #ffd700;
+        background-color: rgba(255, 215, 0, 0.8);
+    }
+    50% { 
+        box-shadow: 0 0 0 6px #ffef00;
+        background-color: rgba(255, 239, 0, 0.9);
+    }
+    100% { 
+        box-shadow: 0 0 0 4px #ffd700;
+        background-color: rgba(255, 215, 0, 0.8);
+    }
+}
+
+@keyframes bestCapturePulse {
+    0% { 
+        box-shadow: 0 0 0 4px #ffd700, 0 0 0 6px #ff4500;
+        background-color: rgba(255, 69, 0, 0.7);
+    }
+    50% { 
+        box-shadow: 0 0 0 6px #ffef00, 0 0 0 8px #ff6347;
+        background-color: rgba(255, 99, 71, 0.8);
+    }
+    100% { 
+        box-shadow: 0 0 0 4px #ffd700, 0 0 0 6px #ff4500;
+        background-color: rgba(255, 69, 0, 0.7);
+    }
+}
+
+@keyframes starTwinkle {
+    0%, 100% { 
+        transform: scale(1);
+        opacity: 1;
+    }
+    25% { 
+        transform: scale(1.2) rotate(10deg);
+        opacity: 0.8;
+    }
+    50% { 
+        transform: scale(1.1) rotate(-5deg);
+        opacity: 1;
+    }
+    75% { 
+        transform: scale(1.15) rotate(5deg);
+        opacity: 0.9;
+    }
+}
+
+.intersection.in-check {
+    background-color: rgba(255, 87, 34, 0.8) !important;
+    box-shadow: 0 0 0 3px #d32f2f;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+/* 中国象棋棋子样式 */
+.chinese-piece {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 3px solid #8b4513;
+    background: linear-gradient(145deg, #f0f0f0, #d0d0d0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: bold;
+    user-select: none;
+    cursor: grab;
+    transition: all 0.2s ease;
+    box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    position: relative;
+}
+
+.chinese-piece.red {
+    color: #d32f2f;
+    background: linear-gradient(145deg, #ffebee, #ffcdd2);
+    border-color: #d32f2f;
+}
+
+.chinese-piece.black {
+    color: #1a1a1a;
+    background: linear-gradient(145deg, #f5f5f5, #e0e0e0);
+    border-color: #1a1a1a;
+}
+
+.chinese-piece:hover {
+    transform: scale(1.1);
+    box-shadow: 3px 3px 6px rgba(0,0,0,0.4);
+}
+
+.chinese-piece:active {
+    cursor: grabbing;
+    transform: scale(0.95);
+}
+
+.game-controls {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.game-controls button {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    font-size: 1em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+#new-game {
+    background: #4caf50;
+    color: white;
+}
+
+#new-game:hover {
+    background: #45a049;
+    transform: translateY(-2px);
+}
+
+#undo-move {
+    background: #ff9800;
+    color: white;
+}
+
+#undo-move:hover {
+    background: #f57c00;
+    transform: translateY(-2px);
+}
+
+#reset-board {
+    background: #f44336;
+    color: white;
+}
+
+#reset-board:hover {
+    background: #d32f2f;
+    transform: translateY(-2px);
+}
+
+/* 删除按钮样式 */
+.delete-piece-btn {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background: rgba(231, 76, 60, 0.4);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 22px;
+    font-weight: 300;
+    font-family: 'Arial', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 25;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+.delete-piece-btn:hover {
+    background: rgba(192, 57, 43, 0.8);
+    transform: translate(-50%, -50%) scale(1.1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* 响应式设计 */
+.chessboard {
+    max-width: calc(100vw - 40px);
+    max-height: calc(100vh - 200px);
+}
+
+/* 超大屏幕 */
+@media (min-width: 1400px) {
+    .chessboard {
+        width: 600px;
+        height: 675px;
+        padding: 40px;
+    }
+    
+    .board-lines {
+        width: 520px;
+        height: 595px;
+    }
+    
+    .intersection {
+        width: 60px;
+        height: 60px;
+        font-size: 32px;
+    }
+    
+    .chinese-piece {
+        width: 48px;
+        height: 48px;
+        font-size: 18px;
+    }
+    
+    .modal-content {
+        max-width: 320px;
+        padding: 20px;
+    }
+    
+    .piece-btn, .cancel-btn {
+        width: 56px;
+        height: 56px;
+        font-size: 22px;
+    }
+}
+
+/* 大屏幕 */
+@media (min-width: 992px) and (max-width: 1399px) {
+    .chessboard {
+        width: 520px;
+        height: 585px;
+        padding: 35px;
+    }
+    
+    .board-lines {
+        width: 450px;
+        height: 515px;
+    }
+    
+    .intersection {
+        width: 55px;
+        height: 55px;
+        font-size: 30px;
+    }
+    
+    .chinese-piece {
+        width: 44px;
+        height: 44px;
+        font-size: 17px;
+    }
+}
+
+/* 中等屏幕 (平板) */
+@media (min-width: 769px) and (max-width: 991px) {
+    .container {
+        padding: 15px;
+    }
+    
+    .chessboard {
+        width: 420px;
+        height: 472px;
+        padding: 25px;
+    }
+    
+    .board-lines {
+        top: 25px;
+        left: 25px;
+        right: 25px;
+        bottom: 25px;
+    }
+    
+    .intersection {
+        width: 45px;
+        height: 45px;
+        font-size: 26px;
+    }
+    
+    .chinese-piece {
+        width: 36px;
+        height: 36px;
+        font-size: 15px;
+    }
+    
+    .modal-content {
+        max-width: 260px;
+    }
+    
+    .piece-btn, .cancel-btn {
+        width: 44px;
+        height: 44px;
+        font-size: 16px;
+    }
+}
+
+/* 小屏幕 (手机) */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+        margin: 5px;
+    }
+    
+    .game-layout {
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .game-rules-panel {
+        max-width: 100%;
+        order: 2;
+    }
+    
+    .chessboard {
+        width: min(360px, calc(100vw - 30px));
+        height: min(405px, calc(100vh - 150px));
+        padding: 20px;
+    }
+    
+    .board-lines {
+        top: 20px;
+        left: 20px;
+        right: 20px;
+        bottom: 20px;
+    }
+    
+    .intersection {
+        width: 40px;
+        height: 40px;
+        font-size: 22px;
+    }
+    
+    .chinese-piece {
+        width: 32px;
+        height: 32px;
+        font-size: 13px;
+    }
+    
+    .game-controls {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .game-controls button {
+        padding: 8px 16px;
+        font-size: 0.85em;
+        min-width: 80px;
+    }
+    
+    .modal-content {
+        max-width: 240px;
+        padding: 12px;
+    }
+    
+    .piece-btn, .cancel-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 14px;
+    }
+    
+    .piece-buttons {
+        gap: 6px;
+    }
+}
+
+/* 极小屏幕 */
+@media (max-width: 480px) {
+    .container {
+        padding: 5px;
+        margin: 0;
+    }
+    
+    .chessboard {
+        width: calc(100vw - 20px);
+        height: calc(100vw * 1.125 - 22px);
+        padding: 15px;
+        margin: 0 auto;
+    }
+    
+    .board-lines {
+        top: 15px;
+        left: 15px;
+        right: 15px;
+        bottom: 15px;
+    }
+    
+    .intersection {
+        width: 35px;
+        height: 35px;
+        font-size: 18px;
+    }
+    
+    .chinese-piece {
+        width: 28px;
+        height: 28px;
+        font-size: 11px;
+    }
+    
+    .game-controls button {
+        padding: 6px 12px;
+        font-size: 0.8em;
+        min-width: 70px;
+    }
+    
+    .modal-content {
+        max-width: 200px;
+        padding: 10px;
+    }
+    
+    .piece-btn, .cancel-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 12px;
+    }
+    
+    .piece-buttons {
+        gap: 4px;
+    }
+}
+
+/* 模态对话框样式 */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    position: relative;
+    background: white;
+    border-radius: 8px;
+    padding: 16px;
+    max-width: 280px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.piece-buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    justify-items: center;
+}
+
+.piece-btn {
+    width: 48px;
+    height: 48px;
+    border: 3px solid #8b4513;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #f0f0f0, #d0d0d0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    user-select: none;
+    box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.piece-btn:hover {
+    background: linear-gradient(145deg, #e8e8e8, #c8c8c8);
+    box-shadow: 3px 3px 6px rgba(0,0,0,0.4);
+}
+
+.piece-btn:active {
+    background: linear-gradient(145deg, #d8d8d8, #b8b8b8);
+    box-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+}
+
+.piece-btn[data-color="black"] {
+    color: #1a1a1a;
+    background: linear-gradient(145deg, #f5f5f5, #e0e0e0);
+    border-color: #1a1a1a;
+}
+
+.cancel-btn {
+    width: 48px;
+    height: 48px;
+    border: 3px solid #999;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #f5f5f5, #e0e0e0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 20px;
+    font-weight: bold;
+    color: #666;
+    user-select: none;
+    box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.cancel-btn:hover {
+    background: linear-gradient(145deg, #ebebeb, #d6d6d6);
+    box-shadow: 3px 3px 6px rgba(0,0,0,0.4);
+    border-color: #666;
+    color: #333;
+}
+
+.cancel-btn:active {
+    background: linear-gradient(145deg, #ddd, #ccc);
+    box-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+}

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChessGame - 中式棋类游戏</title>
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <div class="container">
+        <main>
+            <div class="game-layout">
+                <div class="game-board-container">
+                    <div class="chessboard" id="chessboard">
+                        <!-- 9行8列线条棋盘将由JavaScript动态生成 -->
+                    </div>
+                </div>
+                
+                <div class="game-rules-panel">
+                    <h3>游戏规则</h3>
+                    <div class="rules-content">
+                        <h4>操作方式：</h4>
+                        <ul>
+                            <li>点击棋子选择，再点击目标位置移动</li>
+                            <li>点击空白位置放置新棋子</li>
+                            <li>点击黑子显示删除按钮</li>
+                        </ul>
+                        
+                        <h4>显示说明：</h4>
+                        <ul>
+                            <li><span class="color-indicator green"></span>绿色：可移动位置</li>
+                            <li><span class="color-indicator orange"></span>橙色：可吃子位置</li>
+                            <li><span class="color-indicator gold"></span>金色★：AI推荐位置</li>
+                        </ul>
+                        
+                        <h4>棋子移动规则：</h4>
+                        <ul>
+                            <li><strong>车：</strong>直线移动，可跨越多格</li>
+                            <li><strong>马：</strong>日字形移动，不能被阻挡</li>
+                            <li><strong>象：</strong>田字形移动，2格对角线</li>
+                            <li><strong>士：</strong>对角线移动1格</li>
+                            <li><strong>将：</strong>横竖移动1格</li>
+                            <li><strong>炮：</strong>直线移动，需跳跃吃子</li>
+                            <li><strong>卒：</strong>向前移动1格</li>
+                        </ul>
+                        
+
+                    </div>
+                </div>
+            </div>
+            
+            <div class="game-controls">
+                <button id="new-game">新游戏</button>
+                <button id="undo-move">撤销</button>
+                <button id="reset-board">重置棋盘</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- 棋子选择对话框 -->
+    <div id="piece-selection-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="piece-buttons">
+                <button class="piece-btn" data-type="pawn" data-color="black">卒</button>
+                <button class="piece-btn" data-type="advisor" data-color="black">士</button>
+                <button class="piece-btn" data-type="bishop" data-color="black">象</button>
+                <button class="piece-btn" data-type="cannon" data-color="black">炮</button>
+                <button class="piece-btn" data-type="knight" data-color="black">马</button>
+                <button class="piece-btn" data-type="rook" data-color="black">车</button>
+                <button class="piece-btn" data-type="king" data-color="black">将</button>
+                <button id="modal-cancel" class="cancel-btn">×</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="scripts/pieces.js"></script>
+    <script src="scripts/board.js"></script>
+    <script src="scripts/game.js"></script>
+    <script src="scripts/main.js"></script>
+</body>
+</html>
