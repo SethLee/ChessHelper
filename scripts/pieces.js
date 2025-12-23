@@ -20,13 +20,7 @@ const Color = {
 // 中国象棋棋子符号
 const PieceSymbols = {
     [Color.RED]: {
-        [PieceType.KING]: '帅',
-        [PieceType.ROOK]: '车',
-        [PieceType.BISHOP]: '相',
-        [PieceType.KNIGHT]: '马',
-        [PieceType.PAWN]: '兵',
-        [PieceType.ADVISOR]: '仕',
-        [PieceType.CANNON]: '炮'
+        [PieceType.ROOK]: '车'  // 红方只有车
     },
     [Color.BLACK]: {
         [PieceType.KING]: '将',
@@ -92,47 +86,19 @@ class ChessPiece {
     getPawnMoves(board, row, col) {
         const moves = [];
         
-        if (this.color === Color.RED) {
-            // 红兵：只能向前移动（向黑方方向）
-            const direction = -1;
-            const startRow = 6;
+        // 卒（红兵和黑卒）统一规则：横竖移动一格
+        const directions = [
+            [-1, 0], [1, 0], [0, -1], [0, 1]  // 上下左右
+        ];
 
-            // 向前一格
-            const newRow = row + direction;
-            if (this.isValidPosition(newRow, col) && !board[newRow][col]) {
-                moves.push([newRow, col]);
+        for (const [drow, dcol] of directions) {
+            const newRow = row + drow;
+            const newCol = col + dcol;
 
-                // 如果在起始位置，可以走两格
-                if (row === startRow && !board[newRow + direction][col]) {
-                    moves.push([newRow + direction, col]);
-                }
-            }
-
-            // 斜向吃子
-            for (const dcol of [-1, 1]) {
-                const newCol = col + dcol;
-                if (this.isValidPosition(newRow, newCol)) {
-                    const targetPiece = board[newRow][newCol];
-                    if (targetPiece && targetPiece.color !== this.color) {
-                        moves.push([newRow, newCol]);
-                    }
-                }
-            }
-        } else {
-            // 黑卒：可以向任意方向移动一格
-            const directions = [
-                [-1, 0], [1, 0], [0, -1], [0, 1]  // 上下左右
-            ];
-
-            for (const [drow, dcol] of directions) {
-                const newRow = row + drow;
-                const newCol = col + dcol;
-
-                if (this.isValidPosition(newRow, newCol)) {
-                    const targetPiece = board[newRow][newCol];
-                    if (!targetPiece || targetPiece.color !== this.color) {
-                        moves.push([newRow, newCol]);
-                    }
+            if (this.isValidPosition(newRow, newCol)) {
+                const targetPiece = board[newRow][newCol];
+                if (!targetPiece || targetPiece.color !== this.color) {
+                    moves.push([newRow, newCol]);
                 }
             }
         }
@@ -157,15 +123,9 @@ class ChessPiece {
                     // 空位可以移动
                     moves.push([newRow, newCol]);
                 } else {
-                    // 遇到棋子
-                    if (this.color === Color.RED) {
-                        // 红车可以移动到任何有棋子的位置（会吃掉该棋子）
+                    // 遇到棋子，只能吃敌方棋子
+                    if (targetPiece.color !== this.color) {
                         moves.push([newRow, newCol]);
-                    } else {
-                        // 其他棋子只能吃敌方棋子
-                        if (targetPiece.color !== this.color) {
-                            moves.push([newRow, newCol]);
-                        }
                     }
                     break; // 遇到棋子后停止该方向移动
                 }

@@ -26,6 +26,23 @@ class ChessGame {
 
     // 创建线条棋盘UI (9行8列)
     createBoard() {
+        console.log('createBoard 开始执行...');
+        
+        // 添加测试元素
+        const testDiv = document.createElement('div');
+        testDiv.innerHTML = '坐标测试：createBoard已执行';
+        testDiv.style.cssText = `
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: red;
+            color: white;
+            padding: 10px;
+            z-index: 1000;
+            font-weight: bold;
+        `;
+        document.body.appendChild(testDiv);
+        
         this.boardElement.innerHTML = '';
         
         // 创建SVG网格线
@@ -79,8 +96,33 @@ class ChessGame {
                 intersection.addEventListener('click', () => this.handleSquareClick(row, col));
                 
                 this.boardElement.appendChild(intersection);
+                
+                // 创建坐标标签，直接添加到棋盘而不是交叉点内部
+                const coordText = document.createElement('div');
+                coordText.className = 'coord-text';
+                coordText.dataset.row = row;
+                coordText.dataset.col = col;
+                coordText.textContent = `${row},${col}`;
+                coordText.style.cssText = `
+                    position: absolute;
+                    font-size: 8px;
+                    color: #666;
+                    font-weight: normal;
+                    pointer-events: none;
+                    z-index: 5;
+                    background: rgba(255,255,255,0.7);
+                    padding: 1px 2px;
+                    border-radius: 2px;
+                    white-space: nowrap;
+                `;
+                this.boardElement.appendChild(coordText);
+                
+                console.log(`创建坐标 [${row},${col}] 完成`);
             }
         }
+        
+        console.log(`总共创建了 ${this.boardElement.querySelectorAll('.intersection').length} 个交叉点`);
+        console.log(`总共创建了 ${this.boardElement.querySelectorAll('.coord-text').length} 个坐标标签`);
         
         // 延迟更新布局以确保DOM已渲染
         setTimeout(() => this.updateBoardLayout(), 50);
@@ -244,8 +286,21 @@ class ChessGame {
                     star.innerHTML = '⭐';
                     intersection.appendChild(star);
                 } else {
-                    const className = piece ? 'capture-move' : 'valid-move';
-                    intersection.classList.add(className);
+                    // 针对红车检查位置是否危险
+                    if (selectedPiece && selectedPiece.color === 'red' && selectedPiece.type === 'rook') {
+                        const isDangerous = this.isPositionUnderAttack(row, col, 'red');
+                        if (isDangerous) {
+                            const className = piece ? 'capture-move danger-move' : 'danger-move';
+                            intersection.classList.add('danger-move');
+                            if (piece) intersection.classList.add('capture-move');
+                        } else {
+                            const className = piece ? 'capture-move' : 'valid-move';
+                            intersection.classList.add(className);
+                        }
+                    } else {
+                        const className = piece ? 'capture-move' : 'valid-move';
+                        intersection.classList.add(className);
+                    }
                 }
                 console.log(`添加样式完成`);
             } else {
@@ -258,7 +313,7 @@ class ChessGame {
     clearHighlights() {
         const intersections = this.boardElement.querySelectorAll('.intersection');
         intersections.forEach(intersection => {
-            intersection.classList.remove('selected', 'valid-move', 'capture-move', 'in-check', 'best-move', 'best-capture');
+            intersection.classList.remove('selected', 'valid-move', 'capture-move', 'in-check', 'best-move', 'best-capture', 'danger-move');
             // 移除五角星标识
             const stars = intersection.querySelectorAll('.best-move-star');
             stars.forEach(star => star.remove());
@@ -505,6 +560,20 @@ class ChessGame {
             intersection.style.top = (offsetY + row * cellHeight - intersectionSize / 2) + 'px';
         });
         
+        // 更新坐标标签位置
+        const coordTexts = boardElement.querySelectorAll('.coord-text');
+        coordTexts.forEach(coordText => {
+            const row = parseInt(coordText.dataset.row);
+            const col = parseInt(coordText.dataset.col);
+            
+            const centerX = offsetX + col * cellWidth;
+            const centerY = offsetY + row * cellHeight;
+            
+            // 显示在交叉点的左上角
+            coordText.style.left = (centerX - 20) + 'px';
+            coordText.style.top = (centerY - 20) + 'px';
+        });
+        
         // 更新删除按钮位置（如果存在）
         const deleteBtn = document.getElementById('current-delete-btn');
         if (deleteBtn && deleteBtn.dataset.row && deleteBtn.dataset.col) {
@@ -590,15 +659,12 @@ class ChessGame {
                 score += captureScore;
                 console.log(`位置 [${row},${col}] 可直接吃子 ${targetPiece.type}, 得分: +${captureScore}`);
             } else {
-                // 2. 威胁敌方棋子（中等优先级，只在不能直接吃子时考虑）
-                const threatScore = this.getThreatScore(piece, row, col) * 10;
-                score += threatScore;
-                if (threatScore > 0) {
-                    console.log(`位置 [${row},${col}] 威胁得分: +${threatScore}`);
+                // 2. 位置战术价值评估（无吃子时的次优选择）
+                const positionScore = this.getPositionalValue(piece, row, col);
+                score += positionScore;
+                if (positionScore > 0) {
+                    console.log(`位置 [${row},${col}] 位置价值: +${positionScore}`);
                 }
-                
-                // 3. 位置控制价值（最低优先级）
-                score += this.getPositionValue(piece, row, col);
             }
             
             console.log(`位置 [${row},${col}] 总得分: ${score}`);
@@ -627,11 +693,129 @@ class ChessGame {
         return values[pieceType] || 8;
     }
     
-    // 获取位置价值（只考虑红车）
-    getPositionValue(piece, row, col) {
-        // 简化版本：不考虑位置策略，只关注吃子价值
-        return 0;
+    // 获取位置战术价值（专为红车计算最佳落点）
+    getPositionalValue(piece, row, col) {
+        // 只有红车需要AI计算，黑子由玩家手动放置
+        if (piece.color !== 'red' || piece.type !== 'rook') {
+            return 0;
+        }
+        
+        let value = 0;
+        
+        // 1. 逃生路线评估 - 避免被包围的位置
+        const escapeRoutes = this.countEscapeRoutes(row, col);
+        value += escapeRoutes * 2; // 每条逃生路线+2分
+        
+        // 2. 攻击威胁评估 - 重点奖励多重威胁（叉攻）
+        const attackTargets = this.countAttackableEnemies(piece, row, col);
+        if (attackTargets >= 2) {
+            // 多重威胁（叉攻）- 敌方无法同时保护多个目标
+            value += attackTargets * 15; // 多重威胁高分奖励
+            console.log(`位置 [${row},${col}] 发现${attackTargets}重威胁（叉攻）！奖励: +${attackTargets * 15}分`);
+        } else if (attackTargets === 1) {
+            // 单一威胁 - 敌方容易逃脱，价值较低
+            value += 1; // 单一威胁只给1分
+        }
+        
+        // 3. 边角陷阱避免 - 红车应避免被困在角落
+        if ((row === 0 || row === 8) && (col === 0 || col === 7)) {
+            value -= 10; // 角落严重减分
+        }
+        
+        return Math.max(0, value);
     }
+    
+    // 计算逃生路线数量（红车专用）
+    countEscapeRoutes(row, col) {
+        let routes = 0;
+        const directions = [[0,1], [0,-1], [1,0], [-1,0]]; // 车的四个方向
+        
+        for (const [dr, dc] of directions) {
+            let steps = 0;
+            let r = row + dr;
+            let c = col + dc;
+            
+            // 计算这个方向能走多少步
+            while (r >= 0 && r < 9 && c >= 0 && c < 8) {
+                if (this.board.getPieceAt(r, c)) break; // 遇到棋子停止
+                steps++;
+                r += dr;
+                c += dc;
+            }
+            
+            if (steps > 2) routes++; // 只有能走3步以上才算有效逃生路线
+        }
+        
+        return routes;
+    }
+    
+    // 计算可攻击的敌方棋子数量（专为红车优化）
+    countAttackableEnemies(piece, row, col) {
+        let count = 0;
+        const threatenedPieces = [];
+        
+        if (piece.type === 'rook') {
+            // 车的四个方向直线攻击
+            const directions = [
+                [0, 1, '右'],   // 向右
+                [0, -1, '左'],  // 向左  
+                [1, 0, '下'],   // 向下
+                [-1, 0, '上']   // 向上
+            ];
+            
+            for (const [dr, dc, direction] of directions) {
+                let r = row + dr;
+                let c = col + dc;
+                let foundEnemies = [];
+                
+                console.log(`检查位置 [${row},${col}] 向${direction}方向:`);
+                
+                // 沿直线寻找所有敌方棋子
+                while (r >= 0 && r < 9 && c >= 0 && c < 8) {
+                    const targetPiece = this.board.getPieceAt(r, c);
+                    if (targetPiece) {
+                        console.log(`  找到棋子 ${targetPiece.color} ${targetPiece.type} 在 [${r},${c}]`);
+                        if (targetPiece.color !== piece.color) {
+                            foundEnemies.push({piece: targetPiece, pos: [r, c]});
+                            console.log(`  -> 发现敌方棋子!`);
+                        } else {
+                            console.log(`  -> 己方棋子，停止这个方向`);
+                            break; // 遇到己方棋子停止
+                        }
+                    }
+                    r += dr;
+                    c += dc;
+                }
+                
+                // 分析这个方向的威胁情况
+                if (foundEnemies.length === 1) {
+                    // 单个敌方棋子，直接威胁
+                    count++;
+                    threatenedPieces.push(`${foundEnemies[0].piece.type}(${foundEnemies[0].pos[0]},${foundEnemies[0].pos[1]})`);
+                    console.log(`  -> 直接威胁: ${foundEnemies[0].piece.type}`);
+                } else if (foundEnemies.length === 2) {
+                    // 两个敌方棋子，连续威胁战术
+                    count += 2; // 两个都算作威胁
+                    foundEnemies.forEach(enemy => {
+                        threatenedPieces.push(`${enemy.piece.type}(${enemy.pos[0]},${enemy.pos[1]})`);
+                    });
+                    console.log(`  -> 连续威胁战术: 吃掉${foundEnemies[0].piece.type}后威胁${foundEnemies[1].piece.type}`);
+                } else if (foundEnemies.length > 2) {
+                    // 三个或更多敌方棋子，算作多重威胁
+                    count += foundEnemies.length;
+                    foundEnemies.forEach(enemy => {
+                        threatenedPieces.push(`${enemy.piece.type}(${enemy.pos[0]},${enemy.pos[1]})`);
+                    });
+                    console.log(`  -> 超强连续威胁: ${foundEnemies.length}个目标`);
+                }
+            }
+        }
+        
+        console.log(`位置 [${row},${col}] 威胁总数: ${count}, 威胁棋子: ${threatenedPieces.join(', ')}`);
+        return count;
+    }
+    
+
     
     // 获取安全性得分
     getSafetyScore(piece, row, col) {
@@ -645,19 +829,25 @@ class ChessGame {
     
     // 检查位置是否被敌方攻击
     isPositionUnderAttack(row, col, myColor) {
+        console.log(`检查位置 [${row},${col}] 是否被 ${myColor === 'red' ? '黑方' : '红方'} 攻击`);
+        
         // 检查所有敌方棋子是否能攻击到这个位置
         for (let r = 0; r < 9; r++) {
             for (let c = 0; c < 8; c++) {
                 const enemyPiece = this.board.getPieceAt(r, c);
                 if (enemyPiece && enemyPiece.color !== myColor) {
+                    console.log(`检查敌方棋子 ${enemyPiece.color} ${enemyPiece.type} 在 [${r},${c}]`);
+                    
                     // 根据棋子类型检查是否能攻击目标位置
                     if (this.canPieceAttack(enemyPiece, r, c, row, col)) {
-                        console.log(`位置 [${row},${col}] 被 ${enemyPiece.color} ${enemyPiece.type} 在 [${r},${c}] 攻击`);
+                        console.log(`⚠️ 位置 [${row},${col}] 被 ${enemyPiece.color} ${enemyPiece.type} 在 [${r},${c}] 攻击！`);
                         return true;
                     }
                 }
             }
         }
+        
+        console.log(`✅ 位置 [${row},${col}] 安全`);
         return false;
     }
 
@@ -665,13 +855,34 @@ class ChessGame {
     canPieceAttack(piece, pieceRow, pieceCol, targetRow, targetCol) {
         switch (piece.type) {
             case 'pawn':
-                // 黑卒可以上下左右移动一步
+                // 黑卒可以上下左右移动一步，所以能攻击相邻的位置
                 return Math.abs(pieceRow - targetRow) + Math.abs(pieceCol - targetCol) === 1;
 
             case 'rook':
                 // 车走直线且不能越子
-                return (pieceRow === targetRow || pieceCol === targetCol) && 
-                       !this.isPathBlocked(pieceRow, pieceCol, targetRow, targetCol);
+                if (pieceRow !== targetRow && pieceCol !== targetCol) return false;
+                
+                // 检查路径上是否有障碍物（不包括目标位置）
+                if (pieceRow === targetRow) {
+                    // 水平移动
+                    const minCol = Math.min(pieceCol, targetCol);
+                    const maxCol = Math.max(pieceCol, targetCol);
+                    for (let c = minCol + 1; c < maxCol; c++) {
+                        if (this.board.getPieceAt(pieceRow, c)) {
+                            return false; // 路径被阻挡
+                        }
+                    }
+                } else {
+                    // 垂直移动
+                    const minRow = Math.min(pieceRow, targetRow);
+                    const maxRow = Math.max(pieceRow, targetRow);
+                    for (let r = minRow + 1; r < maxRow; r++) {
+                        if (this.board.getPieceAt(r, pieceCol)) {
+                            return false; // 路径被阻挡
+                        }
+                    }
+                }
+                return true;
 
             case 'knight':
                 // 马走日字
@@ -756,48 +967,7 @@ class ChessGame {
         return count;
     }
     
-    // 获取威胁得分（威胁敌方棋子）
-    getThreatScore(piece, row, col) {
-        let score = 0;
-        
-        if (piece.type === 'rook') {
-            // 计算在该位置能直接吃到的敌方棋子数量和价值
-            const directions = [
-                [0, 1], [0, -1],  // 水平方向
-                [1, 0], [-1, 0]   // 垂直方向
-            ];
-            
-            directions.forEach(([dr, dc]) => {
-                // 沿着该方向寻找第一个棋子
-                for (let i = 1; i < 9; i++) {
-                    const newRow = row + dr * i;
-                    const newCol = col + dc * i;
-                    
-                    // 检查是否超出棋盘边界
-                    if (newRow < 0 || newRow >= 9 || newCol < 0 || newCol >= 8) {
-                        break;
-                    }
-                    
-                    const targetPiece = this.board.getPieceAt(newRow, newCol);
-                    if (targetPiece) {
-                        // 只有敌方棋子才能产生威胁得分，且必须是第一个遇到的
-                        if (targetPiece.color !== piece.color) {
-                            // 检查是否真的能移动到目标位置（考虑其他棋子阻挡）
-                            if (!this.isPathBlocked(row, col, newRow, newCol)) {
-                                score += this.getPieceValue(targetPiece.type);
-                                console.log(`位置 [${row},${col}] 可直接威胁 ${targetPiece.type} 在 [${newRow},${newCol}], 威胁得分: +${this.getPieceValue(targetPiece.type)}`);
-                            } else {
-                                console.log(`位置 [${row},${col}] 无法威胁 ${targetPiece.type} 在 [${newRow},${newCol}] - 路径被阻挡`);
-                            }
-                        }
-                        break; // 遇到棋子就停止，无论是敌方还是己方
-                    }
-                }
-            });
-        }
-        
-        return score;
-    }
+
 
     // 隐藏删除按钮
     hideDeleteButton() {
