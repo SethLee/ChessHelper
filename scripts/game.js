@@ -14,8 +14,6 @@ class ChessGame {
     // 初始化游戏界面
     initializeUI() {
         this.boardElement = document.getElementById('chessboard');
-        this.currentPlayerElement = document.getElementById('current-player');
-        this.gameStatusElement = document.getElementById('game-status');
 
         this.createBoard();
         this.setupEventListeners();
@@ -121,13 +119,10 @@ class ChessGame {
 
     // 处理方格点击事件
     handleSquareClick(row, col) {
-        console.log(`点击位置: ${row}行${col}列`);
         const piece = this.board.getPieceAt(row, col);
-        console.log('该位置棋子:', piece);
         
         // 如果点击空白处，弹窗选择要放置的棋子
         if (!piece && !this.selectedSquare) {
-            console.log('显示棋子放置对话框');
             this.showPiecePlacementDialog(row, col);
             return;
         }
@@ -312,8 +307,6 @@ class ChessGame {
     // 更新UI显示
     updateUI() {
         this.updateBoard();
-        this.updateCurrentPlayer();
-        this.updateGameStatus();
         this.highlightKingInCheck();
     }
 
@@ -336,39 +329,6 @@ class ChessGame {
             }
         }
     }
-
-    // 更新当前玩家显示
-    updateCurrentPlayer() {
-        if (this.currentPlayerElement) {
-            const playerText = this.board.currentPlayer === 'red' ? '红方' : '黑方';
-            this.currentPlayerElement.textContent = playerText;
-        }
-    }
-
-    // 更新游戏状态显示
-    updateGameStatus() {
-        if (this.gameStatusElement) {
-            let statusText = '';
-            switch (this.board.gameStatus) {
-                case 'playing':
-                    statusText = '游戏进行中';
-                    break;
-                case 'check':
-                    statusText = '将军！';
-                    break;
-                case 'checkmate':
-                    const winner = this.board.currentPlayer === 'red' ? '黑方' : '红方';
-                    statusText = `将死！${winner}获胜`;
-                    break;
-                case 'stalemate':
-                    statusText = '和棋（无子可动）';
-                    break;
-            }
-            this.gameStatusElement.textContent = statusText;
-        }
-    }
-
-
 
     // 高亮被将军的王
     highlightKingInCheck() {
@@ -945,7 +905,6 @@ class ChessGame {
             this.board.removePiece(row, col);
             this.deselectSquare();
             this.updateBoard();
-            this.updateGameStatus('已删除黑子');
             console.log(`删除了位置 ${row}行${col}列 的黑子`);
         }
     }
