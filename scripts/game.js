@@ -117,7 +117,6 @@ class ChessGame {
     setupEventListeners() {
         document.getElementById('new-game').addEventListener('click', () => this.newGame());
         document.getElementById('undo-move').addEventListener('click', () => this.undoMove());
-        document.getElementById('reset-board').addEventListener('click', () => this.resetBoard());
     }
 
     // 处理方格点击事件
@@ -412,13 +411,6 @@ class ChessGame {
             this.updateUI();
         } else {
             console.log('没有可以撤销的移动！');
-        }
-    }
-
-    // 重置棋盘
-    resetBoard() {
-        if (confirm('确定要重置棋盘吗？')) {
-            this.newGame();
         }
     }
 

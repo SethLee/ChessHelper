@@ -390,16 +390,6 @@ header h1 {
     transform: translateY(-2px);
 }
 
-#reset-board {
-    background: #f44336;
-    color: white;
-}
-
-#reset-board:hover {
-    background: #d32f2f;
-    transform: translateY(-2px);
-}
-
 /* 删除按钮样式 */
 .delete-piece-btn {
     position: absolute;
