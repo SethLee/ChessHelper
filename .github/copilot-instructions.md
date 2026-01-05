@@ -1,6 +1,6 @@
-# ChessGame Project Instructions
+# ChessHelper Project Instructions
 
-This is a frontend chess game project built with HTML, CSS, and JavaScript.
+This is a frontend chess analysis tool project built for 仙奕破阵 assistance, using HTML, CSS, and JavaScript.
 
 ## Project Structure
 - `index.html` - Main game page

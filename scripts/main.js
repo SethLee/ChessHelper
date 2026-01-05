@@ -1,26 +1,26 @@
-// ChessGame - 主入口文件
+// ChessHelper - 主入口文件
 
-// 全局游戏实例
-let chessGame;
+// 全局分析实例
+let chessHelper;
 
-// 页面加载完成后初始化游戏
+// 页面加载完成后初始化分析工具
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('ChessGame 开始加载...');
+
     
     try {
-        // 创建游戏实例
-        chessGame = new ChessGame();
+        // 创建分析实例
+        chessHelper = new ChessHelper();
         
-        // 初始化游戏界面
-        chessGame.initializeUI();
+        // 初始化分析界面
+        chessHelper.initializeUI();
         
-        console.log('ChessGame 初始化完成！');
+
         
         // 初始化完成
         
     } catch (error) {
-        console.error('游戏初始化失败:', error);
-        console.error('游戏初始化失败，请刷新页面重试。');
+        console.error('分析工具初始化失败:', error);
+        console.error('分析工具初始化失败，请刷新页面重试。');
     }
 });
 
@@ -38,10 +38,10 @@ document.addEventListener('contextmenu', function(event) {
 // 窗口大小改变时的响应（可选）
 window.addEventListener('resize', function() {
     // 这里可以添加响应式布局的处理代码
-    console.log('窗口大小已改变');
+
 });
 
-// 游戏统计功能（可选扩展）
+// 分析统计功能（可选扩展）
 const GameStats = {
     gamesPlayed: 0,
     whiteWins: 0,
@@ -50,7 +50,7 @@ const GameStats = {
     
     // 从localStorage加载统计数据
     load() {
-        const stats = localStorage.getItem('chessGameStats');
+        const stats = localStorage.getItem('chessHelperStats');
         if (stats) {
             Object.assign(this, JSON.parse(stats));
         }
@@ -58,7 +58,7 @@ const GameStats = {
     
     // 保存统计数据到localStorage
     save() {
-        localStorage.setItem('chessGameStats', JSON.stringify({
+        localStorage.setItem('chessHelperStats', JSON.stringify({
             gamesPlayed: this.gamesPlayed,
             whiteWins: this.whiteWins,
             blackWins: this.blackWins,
@@ -66,7 +66,7 @@ const GameStats = {
         }));
     },
     
-    // 记录游戏结果
+    // 记录分析结果
     recordGame(result) {
         this.gamesPlayed++;
         switch (result) {
@@ -94,13 +94,13 @@ const GameStats = {
     }
 };
 
-// 加载游戏统计
+// 加载分析统计
 GameStats.load();
 
 // 导出全局函数供调试使用
-window.ChessGameDebug = {
-    getGame: () => chessGame,
-    getBoard: () => chessGame ? chessGame.board : null,
+window.ChessHelperDebug = {
+    getGame: () => chessHelper,
+    getBoard: () => chessHelper ? chessHelper.board : null,
     getStats: () => GameStats.getStats(),
     resetStats: () => {
         Object.assign(GameStats, { gamesPlayed: 0, whiteWins: 0, blackWins: 0, draws: 0 });
@@ -108,4 +108,3 @@ window.ChessGameDebug = {
     }
 };
 
-console.log('ChessGame 主文件加载完成！');

@@ -1,6 +1,6 @@
-// ChessGame - 游戏逻辑管理
+// ChessHelper - 分析逻辑管理
 
-class ChessGame {
+class ChessHelper {
     constructor() {
         this.board = new ChessBoard();
         this.boardElement = null;
@@ -11,7 +11,7 @@ class ChessGame {
         this.validMoves = [];
     }
 
-    // 初始化游戏界面
+    // 初始化分析界面
     initializeUI() {
         this.boardElement = document.getElementById('chessboard');
 
@@ -25,7 +25,7 @@ class ChessGame {
 
     // 创建线条棋盘UI (9行8列)
     createBoard() {
-        console.log('createBoard 开始执行...');
+
         
         this.boardElement.innerHTML = '';
         
@@ -100,13 +100,10 @@ class ChessGame {
                     white-space: nowrap;
                 `;
                 this.boardElement.appendChild(coordText);
-                
-                console.log(`创建坐标 [${row},${col}] 完成`);
             }
         }
         
-        console.log(`总共创建了 ${this.boardElement.querySelectorAll('.intersection').length} 个交叉点`);
-        console.log(`总共创建了 ${this.boardElement.querySelectorAll('.coord-text').length} 个坐标标签`);
+
         
         // 延迟更新布局以确保DOM已渲染
         setTimeout(() => this.updateBoardLayout(), 50);
@@ -194,15 +191,15 @@ class ChessGame {
         
         this.selectedSquare = [row, col];
         const piece = this.board.getPieceAt(row, col);
-        console.log(`选中棋子:`, piece);
+
         
         if (piece) {
-            console.log(`棋子详细信息:`, piece);
+
             this.validMoves = this.board.getValidMoves(piece);
-            console.log(`有效移动数量: ${this.validMoves.length}`, this.validMoves);
+            // 计算有效移动
             
             if (this.validMoves.length === 0) {
-                console.log(`警告：${piece.color} ${piece.type} 没有有效移动`);
+
             }
             
             this.highlightSquare(row, col, 'selected');
@@ -225,21 +222,20 @@ class ChessGame {
 
     // 尝试移动棋子
     attemptMove(fromRow, fromCol, toRow, toCol) {
-        console.log(`尝试移动: 从 ${fromRow},${fromCol} 到 ${toRow},${toCol}`);
+
         const piece = this.board.getPieceAt(fromRow, fromCol);
         const target = this.board.getPieceAt(toRow, toCol);
-        console.log(`移动棋子:`, piece, `目标位置:`, target);
+
         
         const success = this.board.movePiece(fromRow, fromCol, toRow, toCol);
-        console.log(`移动结果: ${success}`);
+
         
         if (success) {
             this.deselectSquare();
             this.updateUI();
-            this.checkGameEnd();
         } else {
             // 移动无效，保持当前选择或取消选择
-            console.log('移动失败，取消选择');
+
             this.deselectSquare();
         }
     }
@@ -254,25 +250,25 @@ class ChessGame {
 
     // 高亮有效移动
     highlightValidMoves() {
-        console.log(`开始高亮 ${this.validMoves.length} 个有效移动`);
-        console.log(`validMoves内容:`, this.validMoves);
+
+
         
         // 计算最佳落点（只针对红车）
         let bestMoveIndex = -1;
         const selectedPiece = this.board.getPieceAt(this.selectedSquare[0], this.selectedSquare[1]);
-        console.log(`选中棋子信息:`, selectedPiece);
-        console.log(`棋子颜色:`, selectedPiece?.color, `棋子类型:`, selectedPiece?.type);
+
+
         
         if (selectedPiece && selectedPiece.color === 'red' && selectedPiece.type === 'rook' && this.validMoves.length > 0) {
-            console.log(`红车条件满足，计算最佳落点`);
+            // 红车条件满足，计算最佳落点
             bestMoveIndex = this.calculateBestMove(selectedPiece, this.validMoves);
         } else {
-            console.log(`红车条件不满足或无有效移动`);
+            // 红车条件不满足或无有效移动
         }
         
         this.validMoves.forEach(([row, col], index) => {
             const intersection = this.getSquareElement(row, col);
-            console.log(`处理位置 ${row},${col}, 找到元素:`, intersection);
+
             if (intersection) {
                 const piece = this.board.getPieceAt(row, col);
                 
@@ -308,9 +304,9 @@ class ChessGame {
                         intersection.classList.add(className);
                     }
                 }
-                console.log(`添加样式完成`);
+
             } else {
-                console.log(`警告: 未找到位置 ${row},${col} 的交叉点元素`);
+
             }
         });
     }
@@ -367,27 +363,11 @@ class ChessGame {
         }
     }
 
-    // 检查游戏是否结束
-    checkGameEnd() {
-        if (this.board.gameStatus === 'checkmate') {
-            const winner = this.board.currentPlayer === 'red' ? '黑方' : '红方';
-            setTimeout(() => {
-                console.log(`游戏结束！${winner}获胜！`);
-            }, 100);
-        } else if (this.board.gameStatus === 'stalemate') {
-            setTimeout(() => {
-                console.log('游戏结束！和棋（无子可动）！');
-            }, 100);
-        }
-    }
-
-    // 新游戏
+    // 重置棋盘
     newGame() {
-        if (confirm('确定要开始新游戏吗？')) {
-            this.board.reset();
-            this.deselectSquare();
-            this.updateUI();
-        }
+        this.board.reset();
+        this.deselectSquare();
+        this.updateUI();
     }
 
     // 撤销移动
@@ -397,7 +377,7 @@ class ChessGame {
             this.deselectSquare();
             this.updateUI();
         } else {
-            console.log('没有可以撤销的移动！');
+
         }
     }
 
@@ -1011,7 +991,7 @@ class ChessGame {
             this.board.removePiece(row, col);
             this.deselectSquare();
             this.updateBoard();
-            console.log(`删除了位置 ${row}行${col}列 的黑子`);
+
         }
     }
 }

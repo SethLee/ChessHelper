@@ -1,4 +1,4 @@
-// ChessGame - 棋盘管理
+// ChessHelper - 棋盘管理
 
 class ChessBoard {
     constructor() {
@@ -66,16 +66,16 @@ class ChessBoard {
         const piece = this.getPieceAt(fromRow, fromCol);
         const capturedPiece = this.getPieceAt(toRow, toCol);
         
-        console.log(`棋盘移动检查: 棋子=${piece?.getSymbol()}, 目标=${capturedPiece?.getSymbol()}`);
+
 
         if (!piece) {
-            console.log('移动失败: 起始位置没有棋子');
+
             return false;
         }
 
         // 检查是否是有效移动
         const isValid = this.isValidMove(piece, toRow, toCol);
-        console.log(`移动有效性检查: ${isValid}`);
+
         if (!isValid) {
             return false;
         }
@@ -91,7 +91,7 @@ class ChessBoard {
 
         // 如果有吃子，直接移除被吃棋子（不记录）
         if (capturedPiece) {
-            console.log(`${piece.getSymbol()} 吃掉了 ${capturedPiece.getSymbol()}`);
+
         }
 
         // 执行移动
@@ -108,7 +108,7 @@ class ChessBoard {
         // 切换玩家
         this.currentPlayer = this.currentPlayer === Color.WHITE ? Color.BLACK : Color.WHITE;
 
-        // 检查游戏状态
+        // 检查分析状态
         this.updateGameStatus();
 
         return true;
@@ -117,28 +117,28 @@ class ChessBoard {
     // 检查移动是否有效
     isValidMove(piece, toRow, toCol) {
         if (!piece) {
-            console.log('验证失败: 没有棋子');
+
             return false;
         }
 
         // 检查目标位置是否在棋盘内
         if (toRow < 0 || toRow >= 9 || toCol < 0 || toCol >= 8) {
-            console.log('验证失败: 目标位置超出棋盘');
+
             return false;
         }
 
         // 检查目标位置是否有己方棋子
         const targetPiece = this.getPieceAt(toRow, toCol);
         if (targetPiece && targetPiece.color === piece.color) {
-            console.log('验证失败: 目标位置有己方棋子');
+
             return false;
         }
 
         // 检查棋子的移动规则
         const possibleMoves = piece.getPossibleMoves(this.board);
-        console.log(`${piece.getSymbol()} 的可能移动:`, possibleMoves);
+
         const isLegalMove = possibleMoves.some(move => move[0] === toRow && move[1] === toCol);
-        console.log(`移动 ${toRow},${toCol} 是否合法: ${isLegalMove}`);
+
 
         return isLegalMove;
     }
@@ -200,13 +200,13 @@ class ChessBoard {
         return null;
     }
 
-    // 中国象棋不需要升变逻辑
+    // 仙奕破阵不需要升变逻辑
     checkPawnPromotion(piece, row) {
-        // 中国象棋的兵/卒不会升变
+        // 仙奕破阵的兵/卒不会升变
         return;
     }
 
-    // 更新游戏状态
+    // 更新分析状态
     updateGameStatus() {
         const currentPlayerInCheck = this.isInCheck(this.currentPlayer);
         const hasValidMoves = this.hasValidMoves(this.currentPlayer);
@@ -269,7 +269,7 @@ class ChessBoard {
         // 恢复玩家
         this.currentPlayer = player;
 
-        // 更新游戏状态
+        // 更新分析状态
         this.updateGameStatus();
 
         return true;

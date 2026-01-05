@@ -2,7 +2,7 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "Launch ChessGame with Live Server",
+			"label": "Launch ChessHelper with Live Server",
 			"type": "shell",
 			"command": "python",
 			"args": [

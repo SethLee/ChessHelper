@@ -1,4 +1,4 @@
-/* ChessGame - 主样式文件 */
+/* ChessHelper - 主样式文件 */
 
 * {
     margin: 0;
@@ -43,7 +43,7 @@ header h1 {
     margin-bottom: 20px;
 }
 
-/* 正常屏幕下，游戏规则面板在侧边 */
+/* 正常屏幕下，分析规则面板在侧边 */
 .game-layout .game-rules-panel {
     order: 2;
 }
@@ -313,7 +313,7 @@ header h1 {
     100% { opacity: 1; }
 }
 
-/* 中国象棋棋子样式 */
+/* 仙奕破阵棋子样式 */
 .chinese-piece {
     width: 40px;
     height: 40px;

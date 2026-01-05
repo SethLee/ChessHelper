@@ -1,4 +1,4 @@
-// ChessGame - 棋子定义和管理
+// ChessHelper - 棋子定义和管理
 
 // 棋子类型常量
 const PieceType = {
@@ -17,7 +17,7 @@ const Color = {
     BLACK: 'black'
 };
 
-// 中国象棋棋子符号
+// 仙奕破阵棋子符号
 const PieceSymbols = {
     [Color.RED]: {
         [PieceType.ROOK]: '车'  // 红方只有车
