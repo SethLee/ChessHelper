@@ -19,6 +19,7 @@ class ChessGame {
         this.setupEventListeners();
         this.bindModalEvents(); // 预先绑定弹窗事件
         this.setupResizeListener(); // 设置响应式监听
+        this.setupCoordinateToggle(); // 设置坐标显示开关
         this.updateUI();
     }
 
@@ -115,6 +116,32 @@ class ChessGame {
     setupEventListeners() {
         document.getElementById('new-game').addEventListener('click', () => this.newGame());
         document.getElementById('undo-move').addEventListener('click', () => this.undoMove());
+    }
+    
+    // 设置坐标显示开关
+    setupCoordinateToggle() {
+        const checkbox = document.getElementById('show-coordinates');
+        if (checkbox) {
+            checkbox.addEventListener('change', () => {
+                this.toggleCoordinateDisplay(checkbox.checked);
+            });
+            
+            // 初始状态不显示坐标
+            checkbox.checked = false;
+            this.toggleCoordinateDisplay(false);
+        }
+    }
+    
+    // 切换坐标显示
+    toggleCoordinateDisplay(show) {
+        const coordTexts = this.boardElement.querySelectorAll('.coord-text');
+        coordTexts.forEach(coord => {
+            if (show) {
+                coord.classList.add('show');
+            } else {
+                coord.classList.remove('show');
+            }
+        });
     }
 
     // 处理方格点击事件
@@ -591,6 +618,10 @@ class ChessGame {
             if (targetPiece && targetPiece.color !== piece.color) {
                 const captureScore = this.getPieceValue(targetPiece.type) * 1000;
                 score += captureScore;
+                
+                // 吃子时也要考虑位置战术价值，作为同等吃子的tie-breaker
+                const positionBonus = this.getPositionalValue(piece, row, col);
+                score += positionBonus; // 位置加成帮助区分相同吃子价值
             } else {
                 // 2. 位置战术价值评估（无吃子时的次优选择）
                 const positionScore = this.getPositionalValue(piece, row, col);
@@ -629,28 +660,103 @@ class ChessGame {
         
         let value = 0;
         
-        // 1. 逃生路线评估 - 避免被包围的位置
+        // 1. 逃生路线评估 - 基础生存能力
         const escapeRoutes = this.countEscapeRoutes(row, col);
-        value += escapeRoutes * 2; // 每条逃生路线+2分
+        value += escapeRoutes * 3; // 每条逃生路线+3分
         
-        // 2. 攻击威胁评估 - 重点奖励多重威胁（叉攻）
+        // 2. 攻击威胁评估 - 当前攻击价值
         const attackTargets = this.countAttackableEnemies(piece, row, col);
         if (attackTargets >= 2) {
             // 多重威胁（叉攻）- 敌方无法同时保护多个目标
-            value += attackTargets * 15; // 多重威胁高分奖励
+            value += attackTargets * 12; // 多重威胁高分奖励
         } else if (attackTargets === 1) {
             // 单一威胁 - 敌方容易逃脱，价值较低
-            value += 1; // 单一威胁只给1分
+            value += 2; // 单一威胁给2分
         }
         
-        // 3. 边角陷阱避免 - 红车应避免被困在角落
-        if ((row === 0 || row === 8) && (col === 0 || col === 7)) {
-            value -= 10; // 角落严重减分
-        }
+        // 3. 位置质量评估 - 不同位置的战术价值
+        const positionQuality = this.evaluatePositionQuality(row, col);
+        value += positionQuality;
         
-        return Math.max(0, value);
+        // 4. 下一轮最佳潜力评估 - 深度递归思考
+        const nextRoundBest = this.evaluateNextRoundBestMove(piece, row, col);
+        value += nextRoundBest;
+        
+        return value;
     }
     
+    // 评估位置质量（独立的位置价值，不含递归）
+    evaluatePositionQuality(row, col) {
+        let quality = 0;
+        
+        // 1. 中心控制奖励 - 棋盘中心(4,3.5)附近最有价值
+        const centerDistance = Math.abs(row - 4) + Math.abs(col - 3.5);
+        quality += Math.max(0, 6 - centerDistance); // 中心最高6分，边缘0分
+        
+        // 2. 边角惩罚 - 边缘位置战术受限
+        if ((row === 0 || row === 8) && (col === 0 || col === 7)) {
+            quality -= 12; // 四角严重减分
+        } else if (row === 0 || row === 8 || col === 0 || col === 7) {
+            quality -= 4; // 边线减分
+        }
+        
+        // 3. 关键线路奖励
+        if (col === 3 || col === 4) {
+            quality += 2; // 中轴线位置价值高
+        }
+        if (row >= 3 && row <= 6) {
+            quality += 1; // 中段位置较好
+        }
+        
+        return quality;
+    }
+    
+    // 评估下一轮最佳移动潜力（深度递归分析）
+    evaluateNextRoundBestMove(piece, row, col) {
+        // 简化版本：避免复杂的棋盘状态修改，只做静态分析
+        
+        let nextRoundValue = 0;
+        
+        // 1. 从目标位置出发，计算车的潜在移动价值
+        const directions = [[0,1], [0,-1], [1,0], [-1,0]]; // 车的四个方向
+        
+        for (const [dr, dc] of directions) {
+            let r = row + dr;
+            let c = col + dc;
+            let stepCount = 0;
+            
+            // 计算这个方向的潜在价值
+            while (r >= 0 && r < 9 && c >= 0 && c < 8) {
+                const targetPiece = this.board.getPieceAt(r, c);
+                
+                if (targetPiece) {
+                    if (targetPiece.color === 'black') {
+                        // 能威胁的黑子
+                        nextRoundValue += this.getPieceValue(targetPiece.type) * 10; // 威胁价值
+                    }
+                    break; // 遇到棋子停止
+                }
+                
+                stepCount++;
+                // 每个可移动位置增加机动性价值
+                nextRoundValue += 1;
+                
+                r += dr;
+                c += dc;
+            }
+            
+            // 长距离移动奖励（最多5分）
+            nextRoundValue += Math.min(stepCount, 5);
+        }
+        
+        // 2. 位置质量的未来影响
+        const positionQuality = this.evaluatePositionQuality(row, col);
+        nextRoundValue += positionQuality * 2; // 位置质量的长期影响
+        
+        // 3. 折算为当前权重（20%）
+        return Math.floor(nextRoundValue * 0.2);
+    }
+
     // 计算逃生路线数量（红车专用）
     countEscapeRoutes(row, col) {
         let routes = 0;
@@ -674,7 +780,7 @@ class ChessGame {
         
         return routes;
     }
-    
+
     // 计算可攻击的敌方棋子数量（专为红车优化）
     countAttackableEnemies(piece, row, col) {
         let count = 0;
