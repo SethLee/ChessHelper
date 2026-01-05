@@ -43,8 +43,27 @@ header h1 {
     margin-bottom: 20px;
 }
 
+/* 正常屏幕下，游戏规则面板在侧边 */
+.game-layout .game-rules-panel {
+    order: 2;
+}
+
+.game-layout .game-board-container {
+    order: 1;
+}
+
 .game-board-container {
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.game-board-container .game-controls {
+    margin-top: 15px;
+    display: flex;
+    justify-content: center;
+    gap: clamp(10px, min(2vw, 2vh), 15px);
 }
 
 .game-rules-panel {
@@ -98,6 +117,10 @@ header h1 {
 
 .color-indicator.orange {
     background: #ff5722;
+}
+
+.color-indicator.blue {
+    background: #2196f3;
 }
 
 .color-indicator.gold {
@@ -193,8 +216,8 @@ header h1 {
 }
 
 .intersection.capture-move {
-    background-color: rgba(239, 83, 80, 0.6) !important;
-    box-shadow: 0 0 0 3px #f44336;
+    background-color: rgba(33, 150, 243, 0.8) !important;
+    box-shadow: 0 0 0 3px #1976d2 !important;
 }
 
 .intersection.best-move {
@@ -576,11 +599,55 @@ header h1 {
     }
 }
 
+/* 移动端 - 操作说明在上方 */
+@media (max-width: 768px) {
+    .game-layout {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .game-layout .game-rules-panel {
+        order: 0; /* 操作说明在最上方 */
+        max-width: 100%;
+        margin-bottom: 0;
+    }
+    
+    .game-layout .game-board-container {
+        order: 1;
+    }
+}
+
 /* 极小屏幕 */
 @media (max-width: 480px) {
     .container {
         padding: 5px;
         margin: 0;
+    }
+    
+    .game-rules-panel {
+        margin-bottom: 15px;
+        padding: 10px;
+        font-size: 14px;
+    }
+    
+    .game-rules-panel h3 {
+        font-size: 16px;
+        margin-bottom: 8px;
+    }
+    
+    .game-rules-panel h4 {
+        font-size: 14px;
+        margin: 8px 0 5px 0;
+    }
+    
+    .game-rules-panel ul {
+        margin: 5px 0;
+        padding-left: 15px;
+    }
+    
+    .game-rules-panel li {
+        margin-bottom: 3px;
+        font-size: 12px;
     }
     
     .chessboard {
