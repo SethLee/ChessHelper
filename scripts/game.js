@@ -766,14 +766,14 @@ class ChessHelper {
         
         let attackValue = 0;
         if (attackTargets >= 2) {
-            // 多重威胁（叉攻）- 敌方无法同时保护多个目标，实战价值高
-            attackValue = attackTargets * 8; // 提升多重威胁奖励
-        } else if (attackTargets === 1) {
-            // 单一威胁 - 敌方容易逃脱，价值较低
-            attackValue = 1;
+            // 多重威胁（叉攻）- 但要确保是真威胁，不是虚假威胁
+            attackValue = Math.floor(attackTargets * 8); // 确保结果为整数
+        } else if (attackTargets >= 1) {
+            // 单一威胁 - 即使是真威胁价值也较低
+            attackValue = Math.floor(attackTargets); 
         }
         value += attackValue;
-        debugInfo += `攻击威胁(+${attackValue}) `;
+        debugInfo += `攻击威胁(+${attackValue})[威胁值:${attackTargets.toFixed(2)}] `;
         
         // 🎯 高价值目标威胁加成 - 单一威胁容易被逃脱，权重很低
         let highValueBonus = 0;
@@ -925,7 +925,7 @@ class ChessHelper {
         return escapeSpaces;
     }
 
-    // 计算可攻击的敌方棋子数量（专为红车优化）
+    // 计算可攻击的敌方棋子数量（专为红车优化，区分真威胁和虚假威胁）
     countAttackableEnemies(piece, row, col) {
         let count = 0;
         const threatenedPieces = [];
@@ -958,23 +958,28 @@ class ChessHelper {
                     c += dc;
                 }
                 
-                // 分析这个方向的威胁情况
+                // 分析这个方向的威胁情况，重点检查吃子安全性
                 if (foundEnemies.length === 1) {
-                    // 单个敌方棋子，直接威胁
-                    count++;
-                    threatenedPieces.push(`${foundEnemies[0].piece.type}(${foundEnemies[0].pos[0]},${foundEnemies[0].pos[1]})`);
-                } else if (foundEnemies.length === 2) {
-                    // 两个敌方棋子，连续威胁战术
-                    count += 2; // 两个都算作威胁
-                    foundEnemies.forEach(enemy => {
+                    // 单个敌方棋子，检查是否为真威胁
+                    const enemy = foundEnemies[0];
+                    const threatValue = this.evaluateThreatValue(piece, row, col, enemy.pos[0], enemy.pos[1]);
+                    count += threatValue;
+                    if (threatValue > 0) {
                         threatenedPieces.push(`${enemy.piece.type}(${enemy.pos[0]},${enemy.pos[1]})`);
-                    });
-                } else if (foundEnemies.length > 2) {
-                    // 三个或更多敌方棋子，算作多重威胁
-                    count += foundEnemies.length;
-                    foundEnemies.forEach(enemy => {
-                        threatenedPieces.push(`${enemy.piece.type}(${enemy.pos[0]},${enemy.pos[1]})`);
-                    });
+                    }
+                } else if (foundEnemies.length >= 2) {
+                    // 多个敌方棋子，只有第一个可以直接吃
+                    const firstEnemy = foundEnemies[0];
+                    const threatValue = this.evaluateThreatValue(piece, row, col, firstEnemy.pos[0], firstEnemy.pos[1]);
+                    count += threatValue;
+                    if (threatValue > 0) {
+                        threatenedPieces.push(`${firstEnemy.piece.type}(${firstEnemy.pos[0]},${firstEnemy.pos[1]})`);
+                    }
+                    
+                    // 后续棋子算作潜在威胁，但权重很低
+                    for (let i = 1; i < Math.min(foundEnemies.length, 3); i++) {
+                        count += 0.2; // 潜在威胁只算0.2分
+                    }
                 }
             }
         }
@@ -982,6 +987,43 @@ class ChessHelper {
         return count;
     }
     
+    // 评估威胁价值（区分真威胁和虚假威胁）
+    evaluateThreatValue(attackerPiece, attackerRow, attackerCol, targetRow, targetCol) {
+        // 1. 检查目标是否受保护
+        const isProtected = this.isPositionProtected(targetRow, targetCol, 'black');
+        const targetPiece = this.board.getPieceAt(targetRow, targetCol);
+        
+        if (!isProtected) {
+            // 目标未受保护，这是真威胁 - 可以安全吃子
+            console.log(`真威胁: ${targetPiece?.type}(${targetRow},${targetCol}) 未受保护`);
+            return 1.0; // 完整威胁价值
+        } else {
+            // 目标受保护，红车吃子后会被反杀 - 这是虚假威胁
+            // 红车是唯一棋子，被吃掉就游戏结束，绝对不能冒险
+            console.log(`虚假威胁: ${targetPiece?.type}(${targetRow},${targetCol}) 受保护`);
+            return 0.05; // 几乎无价值的虚假威胁
+        }
+    }
+    
+    // 检查位置是否被保护（有己方棋子能吃掉攻击者）
+    isPositionProtected(row, col, defenderColor) {
+        // 检查是否有同色棋子能攻击到这个位置
+        for (let r = 0; r < 9; r++) {
+            for (let c = 0; c < 8; c++) {
+                const protectorPiece = this.board.getPieceAt(r, c);
+                if (protectorPiece && protectorPiece.color === defenderColor) {
+                    // 跳过目标位置本身
+                    if (r === row && c === col) continue;
+                    
+                    // 检查这个棋子是否能保护目标位置
+                    if (this.canPieceAttack(protectorPiece, r, c, row, col)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
 
     
     // 获取安全性得分
