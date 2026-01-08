@@ -230,13 +230,15 @@ class ChessHelper {
         const success = this.board.movePiece(fromRow, fromCol, toRow, toCol);
         
         if (success) {
-            // 检查是否是红车移动且之前吃过将，如果是则标记需要执行十字消除
+            // 🎯 关键修复：检查是否是红车移动且有buff状态
             if (piece && piece.color === 'red' && piece.type === 'rook' && this.kingCaptured) {
+                console.log(`🎯 红车移动触发十字消除! buff状态: ${this.kingCaptured}`);
                 this.shouldExecuteElimination = true; // 标记需要执行十字消除
             }
             
-            // 检查本次移动是否红车吃将
+            // 检查本次移动是否红车吃将（获得首次buff）
             if (piece && piece.color === 'red' && piece.type === 'rook' && target && target.type === 'king') {
+                console.log(`🌟 红车吃将，获得首次十字消除buff!`);
                 this.kingCaptured = true; // 标记吃将状态，下次移动时触发消除
             }
             
@@ -347,15 +349,15 @@ class ChessHelper {
         this.highlightKingInCheck();
         
         // 然后检查是否应该执行十字消除
-        if (this.shouldExecuteElimination) {
+        if (this.shouldExecuteElimination && this.kingCaptured) {
             // 延迟执行十字消除，让用户先看到发光效果
             setTimeout(() => {
+                console.log(`🎯 开始首次十字消除...`);
+                // 🎯 先重置执行标记，避免重复触发
+                this.shouldExecuteElimination = false;
                 this.executeCrossElimination();
-                this.kingCaptured = false; // 重置状态
-                this.shouldExecuteElimination = false; // 重置执行标记
-                // 再次更新棋盘显示
-                this.updateBoard();
-            }, 300); // 缩短到300毫秒
+                // executeCrossElimination会根据是否击杀将来决定是否保持buff
+            }, 300);
         }
     }
     
@@ -410,6 +412,9 @@ class ChessHelper {
         
         const [rookRow, rookCol] = redRookPos;
         const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]]; // 上下左右
+        let eliminatedKings = 0; // 记录消除的将的数量
+        
+        console.log(`⚡ 执行十字消除 位置(${rookRow},${rookCol})`);
         
         // 四个方向分别消除黑子
         directions.forEach(([dr, dc]) => {
@@ -420,12 +425,38 @@ class ChessHelper {
             while (r >= 0 && r < 9 && c >= 0 && c < 8) {
                 const piece = this.board.getPieceAt(r, c);
                 if (piece && piece.color === 'black') {
+                    // 🎯 检查是否消除了将
+                    if (piece.type === 'king') {
+                        eliminatedKings++;
+                        console.log(`🌟 十字消除击杀将! 位置(${r},${c})`);
+                    }
                     this.board.removePiece(r, c); // 消除黑子
                 }
                 r += dr;
                 c += dc;
             }
         });
+        
+        // 🎯 buff消耗逻辑：执行十字消除后，先消耗当前buff
+        console.log(`💫 十字消除执行完毕，消耗buff...`);
+        this.kingCaptured = false; // 先消耗掉当前的buff
+        
+        // 🎯 立即更新棋盘显示，让红车失去发光效果
+        this.updateBoard();
+        
+        // 🎯 连锁逻辑：如果消除了将，获得新的buff
+        if (eliminatedKings > 0) {
+            console.log(`🔥 消除了${eliminatedKings}个将，获得新的连锁buff!`);
+            // 延迟一下让用户看到buff消失的效果，然后给予新buff
+            setTimeout(() => {
+                this.kingCaptured = true; // 获得新的buff，等待下次移动触发
+                this.updateBoard(); // 重新更新显示，让红车重新发光
+                console.log(`🎯 连锁buff已获得，红车重新发光！下次移动将触发十字消除`);
+            }, 500);
+        } else {
+            // 没有消除将，彻底结束
+            console.log(`✨ 十字消除完成，无更多连锁，buff已消耗`);
+        }
     }
 
     // 高亮被将军的王
