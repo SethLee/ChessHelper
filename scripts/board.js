@@ -303,6 +303,12 @@ class ChessBoard {
         }
 
         const moves = piece.getPossibleMoves(this.board);
-        return moves.filter(move => this.isValidMove(piece, move[0], move[1]));
+        return moves.filter(move => {
+            // 确保不包含棋子的当前位置
+            if (move[0] === piece.position[0] && move[1] === piece.position[1]) {
+                return false;
+            }
+            return this.isValidMove(piece, move[0], move[1]);
+        });
     }
 }
