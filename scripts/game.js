@@ -895,15 +895,16 @@ class ChessHelper {
                 // 马走日字
                 if ((Math.abs(pieceRow - targetRow) === 1 && Math.abs(pieceCol - targetCol) === 2) ||
                     (Math.abs(pieceRow - targetRow) === 2 && Math.abs(pieceCol - targetCol) === 1)) {
-                    // 检查蹩马腿
-                    if (Math.abs(pieceRow - targetRow) === 1) {
-                        // 竖着的日，检查横向的别腿点
-                        const blockRow = pieceRow + (targetRow > pieceRow ? 1 : -1);
-                        return !this.board.getPieceAt(blockRow, pieceCol);
-                    } else {
-                        // 横着的日，检查纵向的别腿点
+                    
+                    // 检查蹩马腿 - 马走L型时被阻挡的位置
+                    if (Math.abs(pieceRow - targetRow) === 1 && Math.abs(pieceCol - targetCol) === 2) {
+                        // 横向走2格，竖向走1格的情况
                         const blockCol = pieceCol + (targetCol > pieceCol ? 1 : -1);
                         return !this.board.getPieceAt(pieceRow, blockCol);
+                    } else {
+                        // 竖向走2格，横向走1格的情况  
+                        const blockRow = pieceRow + (targetRow > pieceRow ? 1 : -1);
+                        return !this.board.getPieceAt(blockRow, pieceCol);
                     }
                 }
                 return false;
