@@ -9,6 +9,8 @@ class ChessHelper {
         
         this.selectedSquare = null;
         this.validMoves = [];
+        this.kingCaptured = false; // 是否刚吃掉将，下次移动触发十字消除
+        this.shouldExecuteElimination = false; // 是否应该执行十字消除
     }
 
     // 初始化分析界面
@@ -222,20 +224,26 @@ class ChessHelper {
 
     // 尝试移动棋子
     attemptMove(fromRow, fromCol, toRow, toCol) {
-
         const piece = this.board.getPieceAt(fromRow, fromCol);
         const target = this.board.getPieceAt(toRow, toCol);
-
         
         const success = this.board.movePiece(fromRow, fromCol, toRow, toCol);
-
         
         if (success) {
+            // 检查是否是红车移动且之前吃过将，如果是则标记需要执行十字消除
+            if (piece && piece.color === 'red' && piece.type === 'rook' && this.kingCaptured) {
+                this.shouldExecuteElimination = true; // 标记需要执行十字消除
+            }
+            
+            // 检查本次移动是否红车吃将
+            if (piece && piece.color === 'red' && piece.type === 'rook' && target && target.type === 'king') {
+                this.kingCaptured = true; // 标记吃将状态，下次移动时触发消除
+            }
+            
             this.deselectSquare();
             this.updateUI();
         } else {
             // 移动无效，保持当前选择或取消选择
-
             this.deselectSquare();
         }
     }
@@ -262,6 +270,11 @@ class ChessHelper {
         if (selectedPiece && selectedPiece.color === 'red' && selectedPiece.type === 'rook' && this.validMoves.length > 0) {
             // 红车条件满足，计算最佳落点
             bestMoveIndex = this.calculateBestMove(selectedPiece, this.validMoves);
+            
+            // 如果红车有十字消除buff，在控制台显示调试信息
+            if (this.kingCaptured) {
+                console.log('🎯 红车获得十字消除buff，AI正在计算最佳消除位置...');
+            }
         } else {
             // 红车条件不满足或无有效移动
         }
@@ -329,10 +342,23 @@ class ChessHelper {
 
     // 更新UI显示
     updateUI() {
+        // 先更新棋盘显示（包含发光效果）
         this.updateBoard();
         this.highlightKingInCheck();
+        
+        // 然后检查是否应该执行十字消除
+        if (this.shouldExecuteElimination) {
+            // 延迟执行十字消除，让用户先看到发光效果
+            setTimeout(() => {
+                this.executeCrossElimination();
+                this.kingCaptured = false; // 重置状态
+                this.shouldExecuteElimination = false; // 重置执行标记
+                // 再次更新棋盘显示
+                this.updateBoard();
+            }, 300); // 缩短到300毫秒
+        }
     }
-
+    
     // 更新棋盘显示
     updateBoard() {
         for (let row = 0; row < 9; row++) {
@@ -345,12 +371,61 @@ class ChessHelper {
                     if (piece) {
                         const pieceElement = document.createElement('div');
                         pieceElement.className = `chinese-piece ${piece.color}`;
+                        
+                        // 如果是红车且刚吃了将，添加发光效果和文字提示
+                        if (piece.color === 'red' && piece.type === 'rook' && this.kingCaptured) {
+                            pieceElement.classList.add('king-captured-glow');
+                            
+                            // 添加十字消除提示文字
+                            const hint = document.createElement('div');
+                            hint.className = 'cross-elimination-hint';
+                            hint.textContent = '十字消除';
+                            intersection.appendChild(hint);
+                        }
+                        
                         pieceElement.textContent = piece.getSymbol();
                         intersection.appendChild(pieceElement);
                     }
                 }
             }
         }
+    }
+    
+    // 执行十字消除
+    executeCrossElimination() {
+        // 找到红车位置
+        let redRookPos = null;
+        for (let row = 0; row < 9; row++) {
+            for (let col = 0; col < 8; col++) {
+                const piece = this.board.getPieceAt(row, col);
+                if (piece && piece.color === 'red' && piece.type === 'rook') {
+                    redRookPos = [row, col];
+                    break;
+                }
+            }
+            if (redRookPos) break;
+        }
+        
+        if (!redRookPos) return; // 没找到红车，不执行消除
+        
+        const [rookRow, rookCol] = redRookPos;
+        const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]]; // 上下左右
+        
+        // 四个方向分别消除黑子
+        directions.forEach(([dr, dc]) => {
+            let r = rookRow + dr;
+            let c = rookCol + dc;
+            
+            // 沿直线消除所有黑子，直到边界
+            while (r >= 0 && r < 9 && c >= 0 && c < 8) {
+                const piece = this.board.getPieceAt(r, c);
+                if (piece && piece.color === 'black') {
+                    this.board.removePiece(r, c); // 消除黑子
+                }
+                r += dr;
+                c += dc;
+            }
+        });
     }
 
     // 高亮被将军的王
@@ -367,6 +442,8 @@ class ChessHelper {
     newGame() {
         this.board.reset();
         this.deselectSquare();
+        this.kingCaptured = false; // 重置吃将状态
+        this.shouldExecuteElimination = false; // 重置执行标记
         this.updateUI();
     }
 
@@ -575,9 +652,22 @@ class ChessHelper {
         
         // 先筛选出安全的移动
         const safeMoves = [];
+        console.log('🛡️ 开始安全性检查...');
         validMoves.forEach((move, index) => {
             const [row, col] = move;
-            const isSafe = this.getSafetyScore(piece, row, col);
+            let isSafe = this.getSafetyScore(piece, row, col);
+            
+            // 🎯 特殊逻辑：如果红车有十字消除buff，重新评估"危险"位置
+            if (!isSafe && piece.color === 'red' && piece.type === 'rook' && this.kingCaptured) {
+                isSafe = this.isPositionSafeWithCrossElimination(piece, row, col);
+                if (isSafe) {
+                    console.log(`位置(${row},${col}): 十字消除后安全✨`);
+                } else {
+                    console.log(`位置(${row},${col}): 即使十字消除也危险❌`);
+                }
+            } else {
+                console.log(`位置(${row},${col}): ${isSafe ? '安全✅' : '危险❌'}`);
+            }
             
             if (isSafe) {
                 safeMoves.push({move, index});
@@ -589,24 +679,45 @@ class ChessHelper {
         }
 
         // 在安全移动中计算最佳落点
+        console.log('🔍 开始分析十字消除最佳落点...');
         safeMoves.forEach(({move, index}) => {
             const [row, col] = move;
             let score = 0;
+            let debugInfo = `位置(${row},${col}): `;
             
             // 1. 吃子价值评估（最高优先级）
             const targetPiece = this.board.getPieceAt(row, col);
             if (targetPiece && targetPiece.color !== piece.color) {
-                const captureScore = this.getPieceValue(targetPiece.type) * 1000;
+                let captureScore = this.getPieceValue(targetPiece.type) * 1000;
+                
+                // 🎯 重要棋子直接吃子加成：炮、车、将等高价值目标
+                if (targetPiece.type === 'cannon' || targetPiece.type === 'rook' || targetPiece.type === 'king') {
+                    captureScore *= 1.3; // 30%加成，确保直接吃子优于十字消除
+                }
+                
                 score += captureScore;
+                debugInfo += `吃${targetPiece.type}(+${captureScore}) `;
                 
                 // 吃子时也要考虑位置战术价值，作为同等吃子的tie-breaker
                 const positionBonus = this.getPositionalValue(piece, row, col);
                 score += positionBonus; // 位置加成帮助区分相同吃子价值
+                debugInfo += `位置加成(+${positionBonus}) `;
             } else {
                 // 2. 位置战术价值评估（无吃子时的次优选择）
                 const positionScore = this.getPositionalValue(piece, row, col);
                 score += positionScore;
+                debugInfo += `位置价值(+${positionScore}) `;
             }
+            
+            // 3. 十字消除buff评估（如果红车有十字消除状态）
+            if (piece.color === 'red' && piece.type === 'rook' && this.kingCaptured) {
+                const eliminationValue = this.evaluateCrossEliminationValue(row, col);
+                score += eliminationValue;
+                debugInfo += `十字消除(+${eliminationValue}) `;
+            }
+            
+            debugInfo += `= 总分:${score}`;
+            console.log(debugInfo);
             
             if (score > bestScore) {
                 bestScore = score;
@@ -614,6 +725,7 @@ class ChessHelper {
             }
         });
         
+        console.log(`🎯 最佳选择: 位置${safeMoves[bestMoveIndex]?.move} (得分:${bestScore})`);
         return bestMoveIndex;
     }
     
@@ -661,6 +773,11 @@ class ChessHelper {
         // 4. 下一轮最佳潜力评估 - 深度递归思考
         const nextRoundBest = this.evaluateNextRoundBestMove(piece, row, col);
         value += nextRoundBest;
+        
+        // 5. 十字消除状态加成 - 如果有buff，提升位置价值
+        if (this.kingCaptured) {
+            value += this.evaluateCrossEliminationPositionBonus(row, col);
+        }
         
         return value;
     }
@@ -835,6 +952,46 @@ class ChessHelper {
         return !isUnderAttack;
     }
     
+    // 评估有十字消除buff时位置是否安全
+    isPositionSafeWithCrossElimination(piece, row, col) {
+        // 临时移除当前棋子
+        const originalPiece = this.board.getPieceAt(piece.position[0], piece.position[1]);
+        this.board.setPieceAt(piece.position[0], piece.position[1], null);
+        
+        // 模拟十字消除：临时移除十字方向上的所有黑棋
+        const eliminatedPieces = [];
+        const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]]; // 上下左右
+        
+        directions.forEach(([dr, dc]) => {
+            let r = row + dr;
+            let c = col + dc;
+            
+            while (r >= 0 && r < 9 && c >= 0 && c < 8) {
+                const targetPiece = this.board.getPieceAt(r, c);
+                if (targetPiece && targetPiece.color === 'black') {
+                    // 记录被消除的黑棋，稍后恢复
+                    eliminatedPieces.push({piece: targetPiece, position: [r, c]});
+                    this.board.setPieceAt(r, c, null);
+                }
+                r += dr;
+                c += dc;
+            }
+        });
+        
+        // 检查消除后目标位置是否还会被攻击
+        const isUnderAttack = this.isPositionUnderAttack(row, col, piece.color);
+        
+        // 恢复被消除的黑棋
+        eliminatedPieces.forEach(({piece: eliminatedPiece, position}) => {
+            this.board.setPieceAt(position[0], position[1], eliminatedPiece);
+        });
+        
+        // 恢复原来的红车
+        this.board.setPieceAt(piece.position[0], piece.position[1], originalPiece);
+        
+        return !isUnderAttack;
+    }
+    
     // 检查位置是否被敌方攻击
     isPositionUnderAttack(row, col, myColor) {
         // 检查所有敌方棋子是否能攻击到这个位置
@@ -975,6 +1132,69 @@ class ChessHelper {
         return count;
     }
     
+    // 评估十字消除的价值（当红车有消除buff时）
+    evaluateCrossEliminationValue(row, col) {
+        let eliminationValue = 0;
+        const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]]; // 上下左右
+        
+        // 计算十字方向上能消除的黑棋价值
+        directions.forEach(([dr, dc]) => {
+            let r = row + dr;
+            let c = col + dc;
+            
+            // 沿直线计算所有能消除的黑棋
+            while (r >= 0 && r < 9 && c >= 0 && c < 8) {
+                const piece = this.board.getPieceAt(r, c);
+                if (piece && piece.color === 'black') {
+                    // 十字消除的价值是正常吃子价值的70%（因为是群体消除）
+                    eliminationValue += this.getPieceValue(piece.type) * 700;
+                }
+                r += dr;
+                c += dc;
+            }
+        });
+        
+        return eliminationValue;
+    }
+    
+    // 评估十字消除状态下的位置加成
+    evaluateCrossEliminationPositionBonus(row, col) {
+        let bonus = 0;
+        
+        // 1. 中心位置奖励 - 十字消除从中心效果更好
+        const centerDistance = Math.abs(row - 4) + Math.abs(col - 3.5);
+        bonus += Math.max(0, 20 - centerDistance * 3); // 中心最高20分
+        
+        // 2. 消除覆盖范围奖励
+        const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+        let totalCoverage = 0;
+        
+        directions.forEach(([dr, dc]) => {
+            let r = row + dr;
+            let c = col + dc;
+            let coverage = 0;
+            
+            // 计算这个方向的覆盖范围
+            while (r >= 0 && r < 9 && c >= 0 && c < 8) {
+                coverage++;
+                r += dr;
+                c += dc;
+            }
+            totalCoverage += coverage;
+        });
+        
+        // 覆盖范围越大，位置价值越高
+        bonus += totalCoverage * 2;
+        
+        // 3. 十字消除状态下避开边角的额外惩罚
+        if ((row === 0 || row === 8) && (col === 0 || col === 7)) {
+            bonus -= 30; // 角落位置十字消除效果差
+        } else if (row === 0 || row === 8 || col === 0 || col === 7) {
+            bonus -= 10; // 边线位置也要减分
+        }
+        
+        return bonus;
+    }
 
 
     // 隐藏删除按钮
