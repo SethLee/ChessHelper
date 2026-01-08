@@ -785,9 +785,9 @@ class ChessHelper {
         let value = 0;
         let debugInfo = `位置(${row},${col})价值分析: `;
         
-        // 1. 逃生路线评估 - 基础生存能力
+        // 1. 逃生路线评估 - 基础生存能力，但权重降低
         const escapeRoutes = this.countEscapeRoutes(row, col);
-        const escapeValue = escapeRoutes * 1;
+        const escapeValue = Math.min(escapeRoutes * 0.5, 2); // 大幅降低权重，最妄2分
         value += escapeValue;
         debugInfo += `逃生(+${escapeValue}) `;
         
@@ -798,10 +798,13 @@ class ChessHelper {
         let attackValue = 0;
         if (attackTargets >= 2) {
             // 多重威胁（叉攻）- 但要确保是真威胁，不是虚假威胁
-            attackValue = Math.floor(attackTargets * 8); // 确保结果为整数
-        } else if (attackTargets >= 1) {
-            // 单一威胁 - 即使是真威胁价值也较低
-            attackValue = Math.floor(attackTargets); 
+            attackValue = Math.floor(attackTargets * 12); // 提高多重威胁奖励
+        } else if (attackTargets >= 0.8) {
+            // 真威胁 - 即使是单一目标也给予较高分数
+            attackValue = Math.floor(attackTargets * 8); // 提高单一真威胁奖励
+        } else if (attackTargets > 0) {
+            // 虚假威胁 - 给予少量分数，但不为零（可能有位置价值）
+            attackValue = 1;
         }
         value += attackValue;
         debugInfo += `攻击威胁(+${attackValue})[威胁值:${attackTargets.toFixed(2)}] `;
@@ -855,16 +858,20 @@ class ChessHelper {
                         // 🎯 简化威胁评估：只考虑棋子基础价值
                         const pieceValue = this.getPieceValue(targetPiece.type);
                         
-                        // 只对高价值目标给予威胁分
+                        // 统一威胁评估，与countAttackableEnemies保持一致
+                        const threatValue = this.evaluateThreatValue(piece, row, col, r, c);
                         if (targetPiece.type === 'king') {
-                            nextRoundValue += 5; // 将 - 固定5分
-                            debugInfo += `威胁将(+5) `;
+                            nextRoundValue += threatValue * 5; // 将 - 最高优先级
+                            debugInfo += `威胁将(+${threatValue * 5}) `;
                         } else if (targetPiece.type === 'cannon' || targetPiece.type === 'rook') {
-                            nextRoundValue += 3; // 重要棋子 - 固定3分
-                            debugInfo += `威胁${targetPiece.type}(+3) `;
+                            nextRoundValue += threatValue * 3; // 重要棋子
+                            debugInfo += `威胁${targetPiece.type}(+${threatValue * 3}) `;
+                        } else if (targetPiece.type === 'knight') {
+                            nextRoundValue += threatValue * 2; // 马也是重要目标
+                            debugInfo += `威胁${targetPiece.type}(+${threatValue * 2}) `;
                         } else {
-                            // 小棋子不给威胁分，避免累积过多
-                            debugInfo += `威胁${targetPiece.type}(+0) `;
+                            nextRoundValue += threatValue * 1; // 其他棋子
+                            debugInfo += `威胁${targetPiece.type}(+${threatValue * 1}) `;
                         }
                     }
                     break; // 遇到棋子停止
