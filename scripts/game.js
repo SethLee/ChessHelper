@@ -785,11 +785,11 @@ class ChessHelper {
         let value = 0;
         let debugInfo = `位置(${row},${col})价值分析: `;
         
-        // 1. 逃生路线评估 - 基础生存能力，但权重降低
+        // 1. 逃生路线评估 - 基础生存能力，但权重大幅降低
         const escapeRoutes = this.countEscapeRoutes(row, col);
-        const escapeValue = Math.min(escapeRoutes * 0.5, 2); // 大幅降低权重，最妄2分
+        const escapeValue = Math.min(escapeRoutes * 0.1, 0.5); // 大幅降低权重，最高0.5分
         value += escapeValue;
-        debugInfo += `逃生(+${escapeValue}) `;
+        debugInfo += `逃生(+${escapeValue.toFixed(1)}) `;
         
         // 2. 攻击威胁评估 - 当前攻击价值
         const attackTargets = this.countAttackableEnemies(piece, row, col);
@@ -808,6 +808,14 @@ class ChessHelper {
         }
         value += attackValue;
         debugInfo += `攻击威胁(+${attackValue})[威胁值:${attackTargets.toFixed(2)}] `;
+        
+        // 2.5. 双重威胁奖励 - 多目标攻击的额外战术价值
+        let multiTargetBonus = 0;
+        if (attackTargets > 1.0) { // 进一步降低门槛，只要超过单一威胁就给奖励
+            multiTargetBonus = Math.ceil((attackTargets - 1) * 10); // 提高系数到10，用ceil确保至少1分
+            value += multiTargetBonus;
+            debugInfo += `双重威胁奖励(+${multiTargetBonus}) `;
+        }
         
         // 🎯 高价值目标威胁加成 - 单一威胁容易被逃脱，权重很低
         let highValueBonus = 0;
