@@ -817,10 +817,10 @@ class ChessHelper {
             debugInfo += `双重威胁奖励(+${multiTargetBonus}) `;
         }
         
-        // 🎯 高价值目标威胁加成 - 单一威胁容易被逃脱，权重很低
+        // 🎯 高价值目标威胁加成 - 但只对真威胁给予奖励，虚假威胁不值得追求
         let highValueBonus = 0;
-        if (highValueTargets > 0) {
-            highValueBonus = highValueTargets * 2; // 从10进一步降低到2，因为容易逃脱
+        if (highValueTargets > 0 && attackTargets >= 0.8) { // 只有真威胁才给高价值目标奖励
+            highValueBonus = highValueTargets * 2; 
         }
         value += highValueBonus;
         debugInfo += `高价值目标(+${highValueBonus}) `;
@@ -1033,22 +1033,70 @@ class ChessHelper {
         return count;
     }
     
-    // 评估威胁价值（区分真威胁和虚假威胁）
+    // 评估威胁价值（区分真威胁和虚假威胁，考虑可执行性）
     evaluateThreatValue(attackerPiece, attackerRow, attackerCol, targetRow, targetCol) {
         // 1. 检查目标是否受保护
         const isProtected = this.isPositionProtected(targetRow, targetCol, 'black');
         const targetPiece = this.board.getPieceAt(targetRow, targetCol);
         
         if (!isProtected) {
-            // 目标未受保护，这是真威胁 - 可以安全吃子
+            // 目标未受保护，这是真威胁 - 但还要评估可执行性
             console.log(`真威胁: ${targetPiece?.type}(${targetRow},${targetCol}) 未受保护`);
-            return 1.0; // 完整威胁价值
+            
+            // 可执行性评估：目标能否逃脱？
+            const executability = this.evaluateExecutability(targetPiece, targetRow, targetCol, attackerRow, attackerCol);
+            return 1.0 * executability; // 真威胁价值乘以可执行性系数
         } else {
             // 目标受保护，红车吃子后会被反杀 - 这是虚假威胁
-            // 红车是唯一棋子，被吃掉就游戏结束，绝对不能冒险
             console.log(`虚假威胁: ${targetPiece?.type}(${targetRow},${targetCol}) 受保护`);
-            return 0.05; // 几乎无价值的虚假威胁
+            
+            // 对高机动性棋子的虚假威胁进一步降低价值（它们容易逃跑）
+            if (targetPiece?.type === 'cannon' || targetPiece?.type === 'knight') {
+                return 0.01; // 炮和马机动性强，虚假威胁几乎无价值
+            } else {
+                return 0.05; // 其他棋子的虚假威胁保持原价值
+            }
         }
+    }
+    
+    // 评估威胁的可执行性（目标是否容易逃脱）
+    evaluateExecutability(targetPiece, targetRow, targetCol, attackerRow, attackerCol) {
+        if (!targetPiece) return 0;
+        
+        // 计算目标的逃生路线数量
+        const escapeRoutes = this.countTargetEscapeRoutes(targetPiece, targetRow, targetCol, attackerRow, attackerCol);
+        
+        // 根据逃生路线数量评估可执行性
+        let executability = Math.max(0.1, 1.0 - escapeRoutes * 0.2); // 每条逃生路线-20%可执行性，最低10%
+        
+        console.log(`可执行性评估: ${targetPiece.type}(${targetRow},${targetCol}) 逃生路线:${escapeRoutes} 可执行性:${executability.toFixed(2)}`);
+        return executability;
+    }
+    
+    // 计算目标棋子的逃生路线（考虑攻击者位置）
+    countTargetEscapeRoutes(targetPiece, targetRow, targetCol, attackerRow, attackerCol) {
+        let escapeRoutes = 0;
+        const directions = [[0,1], [0,-1], [1,0], [-1,0]]; // 基本四个方向
+        
+        for (const [dr, dc] of directions) {
+            const newRow = targetRow + dr;
+            const newCol = targetCol + dc;
+            
+            // 检查新位置是否在棋盘内
+            if (newRow >= 0 && newRow < 9 && newCol >= 0 && newCol < 8) {
+                // 检查新位置是否为空或可占据
+                const pieceAtNewPos = this.board.getPieceAt(newRow, newCol);
+                if (!pieceAtNewPos || pieceAtNewPos.color !== targetPiece.color) {
+                    // 检查逃到这个位置是否还会被攻击者威胁
+                    const stillThreatened = (newRow === attackerRow || newCol === attackerCol);
+                    if (!stillThreatened) {
+                        escapeRoutes++;
+                    }
+                }
+            }
+        }
+        
+        return escapeRoutes;
     }
     
     // 检查位置是否被保护（有己方棋子能吃掉攻击者）
