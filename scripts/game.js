@@ -11,6 +11,18 @@ class ChessHelper {
         this.validMoves = [];
         this.kingCaptured = false; // 是否刚吃掉将，下次移动触发十字消除
         this.shouldExecuteElimination = false; // 是否应该执行十字消除
+        
+        // 🎴 明牌预测功能
+        this.predictionUI = {
+            turnsAhead: 1,
+            pieceSlots: [
+                { type: 'pawn', text: '卒' }, // 默认第一个席位放卒
+                { type: 'pawn', text: '卒' }, // 默认第二个席位放卒
+                null, 
+                null
+            ], // 四个席位，默认前两个有卒
+            currentSlot: null // 当前正在设置的席位
+        };
     }
 
     // 初始化分析界面
@@ -22,6 +34,7 @@ class ChessHelper {
         this.bindModalEvents(); // 预先绑定弹窗事件
         this.setupResizeListener(); // 设置响应式监听
         this.setupCoordinateToggle(); // 设置坐标显示开关
+        this.setupDragAndDrop(); // 设置拖拽功能
         this.updateUI();
     }
 
@@ -115,6 +128,9 @@ class ChessHelper {
     setupEventListeners() {
         document.getElementById('new-game').addEventListener('click', () => this.newGame());
         document.getElementById('undo-move').addEventListener('click', () => this.undoMove());
+        
+        // 🎴 明牌预测事件监听
+        this.setupPredictionEventListeners();
     }
     
     // 设置坐标显示开关
@@ -196,12 +212,23 @@ class ChessHelper {
 
         
         if (piece) {
+            console.log(`🎯 选中棋子: ${piece.color} ${piece.type} 位置(${row}, ${col})`);
+
+            // 🆘 如果是红车，检查预设条件
+            if (piece.color === 'red' && piece.type === 'rook') {
+                if (!this.checkPredictionRequirements()) {
+                    this.showPredictionWarning();
+                    this.deselectSquare();
+                    return;
+                }
+            }
 
             this.validMoves = this.board.getValidMoves(piece);
+            console.log(`🎯 可移动位置数量: ${this.validMoves.length}`, this.validMoves);
             // 计算有效移动
             
             if (this.validMoves.length === 0) {
-
+                console.log(`⚠️ 该棋子无法移动!`);
             }
             
             this.highlightSquare(row, col, 'selected');
@@ -227,6 +254,9 @@ class ChessHelper {
         const piece = this.board.getPieceAt(fromRow, fromCol);
         const target = this.board.getPieceAt(toRow, toCol);
         
+        // 记录移动前的位置
+        const originalPosition = piece ? [piece.position[0], piece.position[1]] : null;
+        
         const success = this.board.movePiece(fromRow, fromCol, toRow, toCol);
         
         if (success) {
@@ -240,6 +270,13 @@ class ChessHelper {
             if (piece && piece.color === 'red' && piece.type === 'rook' && target && target.type === 'king') {
                 console.log(`🌟 红车吃将，获得首次十字消除buff!`);
                 this.kingCaptured = true; // 标记吃将状态，下次移动时触发消除
+            }
+            
+            // 🎴 检查黑子是否真的移动了（位置发生了改变）
+            if (piece && piece.color === 'black' && originalPosition && 
+                (originalPosition[0] !== toRow || originalPosition[1] !== toCol)) {
+                console.log(`🎴 检测到黑子真实移动: 从(${originalPosition[0]},${originalPosition[1]}) 到(${toRow},${toCol})`);
+                this.decreaseTurnCounter();
             }
             
             this.deselectSquare();
@@ -521,6 +558,13 @@ class ChessHelper {
             
             // 棋子选择按钮
             if (e.target.classList.contains('piece-btn')) {
+                // 检查当前是否是预设席位模式
+                if (this.predictionUI.currentSlot !== null) {
+                    // 预设席位模式，不在这里处理，交给setupPredictionEventListeners处理
+                    return;
+                }
+                
+                // 棋盘放置模式
                 const type = e.target.getAttribute('data-type');
                 const color = e.target.getAttribute('data-color');
                 this.placePiece(this.modalRow, this.modalCol, type, color);
@@ -1396,6 +1440,323 @@ class ChessHelper {
             this.deselectSquare();
             this.updateBoard();
 
+        }
+    }
+
+    // 🎴 ============ 明牌预测功能 ============
+
+    // 🆘 检查预测设置是否完整
+    checkPredictionRequirements() {
+        // 如果回合数不为0，直接允许红车计算路径
+        if (this.predictionUI.turnsAhead !== 0) {
+            return true; // 回合数不为0时，直接允许
+        }
+        
+        // 回合数为0时，无论什么情况都不允许红车走动
+        return false; // 回合数为0时，无论如何都不允许红车走动
+    }
+
+    // 🚨 显示预测警告提示
+    showPredictionWarning() {
+        const predictionPanel = document.getElementById('prediction-panel');
+        if (predictionPanel) {
+            predictionPanel.classList.add('prediction-warning');
+            
+            // 统一提示消息
+            const warningMessage = '⚠️ 请拖拽放置新增棋子并重新预设回合数和新棋子！';
+            
+            // 显示警告文字
+            this.showWarningMessage(warningMessage);
+            
+            // 3秒后自动清除警告
+            setTimeout(() => {
+                predictionPanel.classList.remove('prediction-warning');
+                this.hideWarningMessage();
+            }, 3000);
+        }
+    }
+
+    // 设置预测功能事件监听
+    setupPredictionEventListeners() {
+        // 回合数调整按钮
+        document.getElementById('turns-minus').addEventListener('click', () => {
+            if (this.predictionUI.turnsAhead > 1) {
+                this.predictionUI.turnsAhead--;
+                document.getElementById('turns-display').textContent = this.predictionUI.turnsAhead;
+                this.clearDragReadyHint(); // 清除提示效果
+                this.clearPredictionWarning(); // 清除警告效果
+            }
+        });
+        
+        document.getElementById('turns-plus').addEventListener('click', () => {
+            if (this.predictionUI.turnsAhead < 10) {
+                this.predictionUI.turnsAhead++;
+                document.getElementById('turns-display').textContent = this.predictionUI.turnsAhead;
+                this.clearDragReadyHint(); // 清除提示效果
+                this.clearPredictionWarning(); // 清除警告效果
+            }
+        });
+        
+        // 席位点击事件
+        document.querySelectorAll('.piece-slot').forEach((slot, index) => {
+            slot.addEventListener('click', () => {
+                if (slot.classList.contains('empty')) {
+                    this.openPieceSelection(index);
+                }
+            });
+        });
+        
+        // 模态框事件
+        document.getElementById('modal-cancel').addEventListener('click', () => {
+            this.closePieceSelection();
+        });
+        
+        document.querySelectorAll('.piece-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const pieceType = btn.dataset.type;
+                const pieceText = btn.textContent;
+                this.selectPieceForSlot(this.predictionUI.currentSlot, pieceType, pieceText);
+            });
+        });
+        
+        // 初始化席位显示
+        this.initializePredictionSlots();
+    }
+    
+    // 🎲 打开棋子选择对话框
+    openPieceSelection(slotIndex) {
+        this.predictionUI.currentSlot = slotIndex;
+        const modal = document.getElementById('piece-selection-modal');
+        modal.style.display = 'flex'; // 使用 flex 布局实现居中
+    }
+    
+    // 🎲 关闭棋子选择对话框
+    closePieceSelection() {
+        const modal = document.getElementById('piece-selection-modal');
+        modal.style.display = 'none';
+        this.predictionUI.currentSlot = null;
+    }
+    
+    // 🎲 初始化预测席位显示
+    initializePredictionSlots() {
+        this.predictionUI.pieceSlots.forEach((slotData, index) => {
+            const slot = document.querySelector(`[data-slot="${index}"]`);
+            if (slotData && slot) {
+                // 有棋子的席位
+                slot.classList.remove('empty');
+                slot.classList.add('filled');
+                
+                slot.innerHTML = `
+                    <div class="chinese-piece black piece-in-slot" draggable="true" data-piece-type="${slotData.type}">
+                        ${slotData.text}
+                    </div>
+                    <button class="remove-piece" onclick="chessHelper.removePieceFromSlot(${index})">×</button>
+                `;
+            }
+        });
+    }
+
+    // 🎲 为席位选择棋子
+    selectPieceForSlot(slotIndex, pieceType, pieceText) {
+        this.predictionUI.pieceSlots[slotIndex] = { type: pieceType, text: pieceText };
+        
+        const slot = document.querySelector(`[data-slot="${slotIndex}"]`);
+        slot.classList.remove('empty');
+        slot.classList.add('filled');
+        
+        // 使用与棋盘上相同的棋子样式
+        slot.innerHTML = `
+            <div class="chinese-piece black piece-in-slot" draggable="true" data-piece-type="${pieceType}">
+                ${pieceText}
+            </div>
+            <button class="remove-piece" onclick="chessHelper.removePieceFromSlot(${slotIndex})">×</button>
+        `;
+        
+        this.closePieceSelection();
+    }
+    
+    // 🎲 从席位移除棋子
+    removePieceFromSlot(slotIndex) {
+        this.predictionUI.pieceSlots[slotIndex] = null;
+        
+        const slot = document.querySelector(`[data-slot="${slotIndex}"]`);
+        slot.classList.remove('filled');
+        slot.classList.add('empty');
+        
+        slot.innerHTML = '<span class="slot-placeholder">+</span>';
+    }
+    
+    // 🌆 显示可拖拽提示效果
+    showDragReadyHint() {
+        // 更改文字提示
+        const turnsLabel = document.querySelector('.turns-label');
+        if (turnsLabel) {
+            turnsLabel.textContent = '现在可拖拽';
+            turnsLabel.style.color = '#28a745';
+            turnsLabel.style.fontWeight = 'bold';
+        }
+        
+        // 让整个预测面板闪烁
+        const predictionPanel = document.getElementById('prediction-panel');
+        if (predictionPanel) {
+            predictionPanel.classList.add('panel-ready-highlight');
+        }
+        
+        // 为有棋子的席位添加闪烁效果
+        const filledSlots = document.querySelectorAll('.piece-slot.filled');
+        filledSlots.forEach(slot => {
+            slot.classList.add('drag-ready-highlight');
+        });
+        
+        console.log('🌆 已激活拖拽提示效果');
+    }
+    
+    // 🔄 清除拖拽提示效果
+    clearDragReadyHint() {
+        // 恢复文字提示
+        const turnsLabel = document.querySelector('.turns-label');
+        if (turnsLabel) {
+            turnsLabel.textContent = '回合后增加';
+            turnsLabel.style.color = '';
+            turnsLabel.style.fontWeight = '';
+        }
+        
+        // 移除预测面板闪烁效果
+        const predictionPanel = document.getElementById('prediction-panel');
+        if (predictionPanel) {
+            predictionPanel.classList.remove('panel-ready-highlight');
+        }
+        
+        // 移除席位闪烁效果
+        const highlightedSlots = document.querySelectorAll('.drag-ready-highlight');
+        highlightedSlots.forEach(slot => {
+            slot.classList.remove('drag-ready-highlight');
+        });
+    }
+    
+    // 🚨 清除预测警告效果
+    clearPredictionWarning() {
+        const predictionPanel = document.getElementById('prediction-panel');
+        if (predictionPanel) {
+            predictionPanel.classList.remove('prediction-warning');
+        }
+        this.hideWarningMessage();
+    }
+    
+    // 🎴 减少回合计数
+    decreaseTurnCounter() {
+        if (this.predictionUI.turnsAhead > 0) {
+            this.predictionUI.turnsAhead--;
+            document.getElementById('turns-display').textContent = this.predictionUI.turnsAhead;
+            console.log(`🎴 黑子移动，回合计数减1，剩余: ${this.predictionUI.turnsAhead}`);
+            
+            // 如果回合数归零，触发友好提示
+            if (this.predictionUI.turnsAhead === 0) {
+                console.log(`🎴 回合数归零，可以应用预设棋子了！`);
+                this.showDragReadyHint();
+            }
+        }
+    }
+    
+    // 🎲 设置拖拽功能
+    setupDragAndDrop() {
+        // 为棋盘交叉点添加拖拽接收事件
+        document.addEventListener('dragover', (e) => {
+            if (e.target.closest('.intersection')) {
+                e.preventDefault(); // 允许放置
+            }
+        });
+        
+        document.addEventListener('drop', (e) => {
+            const intersection = e.target.closest('.intersection');
+            if (intersection) {
+                e.preventDefault();
+                
+                const pieceType = e.dataTransfer.getData('text/plain');
+                const sourceSlot = e.dataTransfer.getData('source-slot');
+                const row = parseInt(intersection.dataset.row);
+                const col = parseInt(intersection.dataset.col);
+                
+                this.handleDragDrop(pieceType, row, col, sourceSlot);
+            }
+        });
+        
+        // 使用事件委托处理动态创建的可拖拽元素
+        document.addEventListener('dragstart', (e) => {
+            if (e.target.classList.contains('chinese-piece') && e.target.hasAttribute('draggable')) {
+                const pieceType = e.target.dataset.pieceType;
+                // 找到源席位
+                const sourceSlot = e.target.closest('.piece-slot');
+                const slotIndex = sourceSlot ? sourceSlot.dataset.slot : null;
+                
+                e.dataTransfer.setData('text/plain', pieceType);
+                e.dataTransfer.setData('source-slot', slotIndex || '');
+                console.log(`🎲 开始拖拽: ${pieceType} 来自席位 ${slotIndex}`);
+            }
+        });
+    }
+    
+    // 🎲 处理拖拽放置
+    handleDragDrop(pieceType, row, col, sourceSlot = null) {
+        // 检查位置是否为空
+        const existingPiece = this.board.getPieceAt(row, col);
+        if (existingPiece) {
+            alert('该位置已有棋子，请选择空白位置');
+            return;
+        }
+        
+        // 添加棋子到棋盘
+        this.addPieceToBoard(pieceType, 'black', row, col);
+        
+        // 如果有源席位，清空它
+        if (sourceSlot !== null && sourceSlot !== '') {
+            this.removePieceFromSlot(parseInt(sourceSlot));
+            this.clearDragReadyHint(); // 清除提示效果
+            this.clearPredictionWarning(); // 清除警告效果
+            console.log(`🎲 拖拽放置: ${pieceType} 从席位 ${sourceSlot} 到位置 (${row}, ${col})，席位已清空`);
+        } else {
+            console.log(`🎲 拖拽放置: ${pieceType} 到位置 (${row}, ${col})`);
+        }
+        
+        // 更新UI
+        this.updateUI();
+    }
+    
+    // 🎲 添加棋子到棋盘
+    addPieceToBoard(pieceType, color, row, col) {
+        const piece = new ChessPiece(pieceType, color, [row, col]);
+        this.board.setPieceAt(row, col, piece);
+    }
+
+    // 📢 显示警告消息
+    showWarningMessage(message) {
+        // 先清除现有警告
+        this.hideWarningMessage();
+        
+        // 创建蒙层元素
+        const overlay = document.createElement('div');
+        overlay.className = 'prediction-overlay';
+        overlay.id = 'game-warning-overlay';
+        
+        // 创建警告文字
+        const warningText = document.createElement('div');
+        warningText.className = 'overlay-warning-text';
+        warningText.textContent = message;
+        
+        overlay.appendChild(warningText);
+        
+        // 添加到预测面板区域
+        const predictionPanel = document.getElementById('prediction-panel');
+        if (predictionPanel) {
+            predictionPanel.appendChild(overlay);
+        }
+    }
+
+    // 📢 隐藏警告消息
+    hideWarningMessage() {
+        const existingOverlay = document.getElementById('game-warning-overlay');
+        if (existingOverlay) {
+            existingOverlay.remove();
         }
     }
 }

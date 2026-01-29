@@ -15,6 +15,35 @@
         <main>
             <div class="game-layout">
                 <div class="game-board-container">
+                    <!-- 🎴 明牌预测面板 - 移至棋盘顶部 -->
+                    <div id="prediction-panel" class="prediction-panel-top">
+                        <div class="prediction-row">
+                            <!-- 回合数设置 -->
+                            <div class="turns-counter">
+                                <button id="turns-minus" class="counter-btn">−</button>
+                                <span id="turns-display" class="turns-number">1</span>
+                                <button id="turns-plus" class="counter-btn">+</button>
+                                <label class="turns-label">回合后增加</label>
+                            </div>
+                            
+                            <!-- 棋子席位设置 -->
+                            <div class="piece-slots-inline">
+                                <div class="piece-slot empty" data-slot="0">
+                                    <span class="slot-placeholder">+</span>
+                                </div>
+                                <div class="piece-slot empty" data-slot="1">
+                                    <span class="slot-placeholder">+</span>
+                                </div>
+                                <div class="piece-slot empty" data-slot="2">
+                                    <span class="slot-placeholder">+</span>
+                                </div>
+                                <div class="piece-slot empty" data-slot="3">
+                                    <span class="slot-placeholder">+</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="chessboard" id="chessboard">
                         <!-- 9行8列线条棋盘将由JavaScript动态生成 -->
                     </div>
@@ -38,9 +67,11 @@
                     <div class="rules-content">
                         <h4>操作方式：</h4>
                         <ul>
-                            <li>点击空白位置放置黑子（系统棋子）</li>
+                            <li>点击加减号调整回合数</li>
+                            <li>点击圆形虚线框预设新增棋子</li>
                             <li>点击红车选中，查看最佳走法</li>
-                            <li>点击黑子可删除（调整布局）</li>
+                            <li>点击空白位置或黑子可手动调整布局</li>
+                            <li>移动黑子会减少回合数，归零时需拖拽放置棋子</li>
                         </ul>
                         
                         <h4>显示说明：</h4>
