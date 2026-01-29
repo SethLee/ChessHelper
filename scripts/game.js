@@ -1512,10 +1512,14 @@ class ChessHelper {
         });
         
         document.querySelectorAll('.piece-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const pieceType = btn.dataset.type;
-                const pieceText = btn.textContent;
-                this.selectPieceForSlot(this.predictionUI.currentSlot, pieceType, pieceText);
+            btn.addEventListener('click', (e) => {
+                // 如果是预设席位模式，阻止事件冒泡
+                if (this.predictionUI.currentSlot !== null) {
+                    e.stopPropagation();
+                    const pieceType = btn.dataset.type;
+                    const pieceText = btn.textContent;
+                    this.selectPieceForSlot(this.predictionUI.currentSlot, pieceType, pieceText);
+                }
             });
         });
         
