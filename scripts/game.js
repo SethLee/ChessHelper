@@ -344,16 +344,27 @@ class ChessHelper {
                     if (selectedPiece && selectedPiece.color === 'red' && selectedPiece.type === 'rook') {
                         const isDangerous = !this.getSafetyScore(selectedPiece, row, col);
                         if (isDangerous) {
-                            const className = piece ? 'capture-move danger-move' : 'danger-move';
+                            // 危险位置优先显示红色，即使可以吃子也显示为危险
                             intersection.classList.add('danger-move');
-                            if (piece) intersection.classList.add('capture-move');
+                            if (piece) {
+                                // 虽然可以吃子，但因为危险所以只显示红色危险标识
+                                intersection.classList.add('danger-capture'); 
+                            }
                         } else {
-                            const className = piece ? 'capture-move' : 'valid-move';
-                            intersection.classList.add(className);
+                            // 安全位置正常显示
+                            if (piece) {
+                                intersection.classList.add('capture-move');
+                            } else {
+                                intersection.classList.add('valid-move');
+                            }
                         }
                     } else {
-                        const className = piece ? 'capture-move' : 'valid-move';
-                        intersection.classList.add(className);
+                        // 非红车的正常显示逻辑
+                        if (piece) {
+                            intersection.classList.add('capture-move');
+                        } else {
+                            intersection.classList.add('valid-move');
+                        }
                     }
                 }
 
@@ -367,7 +378,7 @@ class ChessHelper {
     clearHighlights() {
         const intersections = this.boardElement.querySelectorAll('.intersection');
         intersections.forEach(intersection => {
-            intersection.classList.remove('selected', 'valid-move', 'capture-move', 'in-check', 'best-move', 'best-capture', 'danger-move');
+            intersection.classList.remove('selected', 'valid-move', 'capture-move', 'in-check', 'best-move', 'best-capture', 'danger-move', 'danger-capture');
             // 移除五角星标识
             const stars = intersection.querySelectorAll('.best-move-star');
             stars.forEach(star => star.remove());
@@ -750,6 +761,55 @@ class ChessHelper {
         });
 
         if (safeMoves.length === 0) {
+            console.log('⚠️ 所有位置都危险，选择得分最高的移动（红车可复活）...');
+            // 当所有移动都危险时，选择价值最高的移动（红车有复活机会）
+            let bestDangerousIndex = -1;
+            let bestDangerousScore = -Infinity;
+            
+            validMoves.forEach((move, index) => {
+                const [row, col] = move;
+                let score = 0;
+                let debugInfo = `危险位置(${row},${col}): `;
+                
+                // 1. 吃子价值评估（最高优先级）
+                const targetPiece = this.board.getPieceAt(row, col);
+                if (targetPiece && targetPiece.color !== piece.color) {
+                    let captureScore = this.getPieceValue(targetPiece.type) * 1000;
+                    // 重要棋子加成
+                    if (targetPiece.type === 'cannon' || targetPiece.type === 'rook' || targetPiece.type === 'king') {
+                        captureScore *= 1.5; // 50%加成
+                    }
+                    score += captureScore;
+                    debugInfo += `吃${targetPiece.type}(+${captureScore}) `;
+                }
+                
+                // 2. 位置战术价值
+                const positionScore = this.getPositionalValue(piece, row, col);
+                score += positionScore;
+                debugInfo += `位置价值(+${positionScore}) `;
+                
+                // 3. 十字消除价值（如果有buff）
+                if (piece.color === 'red' && piece.type === 'rook' && this.kingCaptured) {
+                    const eliminationValue = this.evaluateCrossEliminationValue(row, col);
+                    score += eliminationValue;
+                    debugInfo += `十字消除(+${eliminationValue}) `;
+                }
+                
+                debugInfo += `= 总分:${score}`;
+                console.log(debugInfo);
+                
+                if (score > bestDangerousScore) {
+                    bestDangerousScore = score;
+                    bestDangerousIndex = index;
+                }
+            });
+            
+            if (bestDangerousIndex !== -1) {
+                const [row, col] = validMoves[bestDangerousIndex];
+                console.log(`🎯 走投无路，选择最高价值位置: (${row},${col}) 得分:${bestDangerousScore} 💀`);
+                return bestDangerousIndex;
+            }
+            
             return -1;
         }
 
